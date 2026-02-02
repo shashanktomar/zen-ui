@@ -17,7 +17,7 @@ export const heatmapCard: CardRenderer = {
   },
 
   render(context: CardRenderContext) {
-    const { config, data, colorScale } = context
+    const { config, data, colorScale, locale } = context
     const isYearMode = config.range === 'year'
     const showYearLabels = data.length > 1
 
@@ -32,7 +32,7 @@ export const heatmapCard: CardRenderer = {
             showYearLabels,
           ),
         )}
-        ${config.show_legend !== false ? renderLegend(colorScale) : ''}
+        ${config.show_legend !== false ? renderLegend(colorScale, locale) : ''}
       </div>
     `
   },

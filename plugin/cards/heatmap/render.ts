@@ -8,6 +8,7 @@ import { html, svg, type TemplateResult } from 'lit'
 import type { HeatmapData } from '../../data-pipeline'
 import type { CardRenderContext } from '../types'
 import { calculateGridPositions } from './grid'
+import { t } from '../../shared/localize'
 
 const RECT_SIZE = 10
 const GAP = 3
@@ -53,9 +54,13 @@ export function renderYearGraph(
   let lastLabelPos = -999
   for (const [month, col] of sortedMonths) {
     if (col - lastLabelPos > 2) {
-      const name = new Date(2000, month, 1).toLocaleString('default', {
-        month: 'short',
-      })
+      const name = new Date(Date.UTC(2000, month, 1)).toLocaleString(
+        context.locale,
+        {
+          month: 'short',
+          timeZone: 'UTC',
+        },
+      )
       labels.push(svg`<text x="${col * STEP}" y="-7">${name}</text>`)
       lastLabelPos = col
     }
@@ -64,18 +69,27 @@ export function renderYearGraph(
   const width = heatmapData.weeks.length * STEP - GAP
   const height = 7 * STEP - GAP
 
-  // Day labels based on week start day
+  // Day labels based on week start day (using UTC to avoid DST issues)
+  const getDayLabel = (dayIndex: number): string => {
+    // Jan 2, 2000 = Sunday, so dayIndex 0=Sun, 1=Mon, etc.
+    const d = new Date(Date.UTC(2000, 0, 2 + dayIndex))
+    return d.toLocaleString(context.locale, {
+      weekday: 'short',
+      timeZone: 'UTC',
+    })
+  }
+
   const dayLabels =
     weekStart === 0
       ? [
-          { row: 1, label: 'Mon' },
-          { row: 3, label: 'Wed' },
-          { row: 5, label: 'Fri' },
+          { row: 1, label: getDayLabel(1) }, // Mon
+          { row: 3, label: getDayLabel(3) }, // Wed
+          { row: 5, label: getDayLabel(5) }, // Fri
         ]
       : [
-          { row: 1, label: 'Tue' },
-          { row: 3, label: 'Thu' },
-          { row: 5, label: 'Sat' },
+          { row: 1, label: getDayLabel(2) }, // Tue
+          { row: 3, label: getDayLabel(4) }, // Thu
+          { row: 5, label: getDayLabel(6) }, // Sat
         ]
 
   const yearLabel = heatmapData.range.label || ''
@@ -115,7 +129,10 @@ export function renderYearGraph(
   `
 }
 
-export function renderLegend(colorScale: string[]): TemplateResult {
+export function renderLegend(
+  colorScale: string[],
+  locale: string,
+): TemplateResult {
   const legendItems = colorScale.map((color) => {
     const style =
       color === 'transparent'
@@ -126,9 +143,9 @@ export function renderLegend(colorScale: string[]): TemplateResult {
 
   return html`
     <div class="legend">
-      <span>Less</span>
+      <span>${t('less', locale)}</span>
       ${legendItems}
-      <span>More</span>
+      <span>${t('more', locale)}</span>
     </div>
   `
 }
