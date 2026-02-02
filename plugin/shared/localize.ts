@@ -56,16 +56,3 @@ const translations: Record<string, Partial<TranslationStrings>> = {
 
 export const t = (key: Key, locale = 'en'): string =>
   translations[locale.split('-')[0]]?.[key] ?? en[key]
-
-export function firstWeekdayToIndex(firstWeekday?: string): number | undefined {
-  const map: Record<string, number> = {
-    sunday: 0,
-    monday: 1,
-    tuesday: 2,
-    wednesday: 3,
-    thursday: 4,
-    friday: 5,
-    saturday: 6,
-  }
-  return firstWeekday ? map[firstWeekday] : undefined
-}

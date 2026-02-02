@@ -34,15 +34,6 @@ export interface Hass {
   }
   locale?: {
     language: string
-    first_weekday?:
-      | 'language'
-      | 'monday'
-      | 'tuesday'
-      | 'wednesday'
-      | 'thursday'
-      | 'friday'
-      | 'saturday'
-      | 'sunday'
   }
 }
 

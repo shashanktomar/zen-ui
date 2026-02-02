@@ -68,20 +68,20 @@ title: Activity
 
 <br>
 
-| Option            | Type     | Default      | Description                                                                                               |
-| ----------------- | -------- | ------------ | --------------------------------------------------------------------------------------------------------- |
-| `entity`          | string   | **Required** | Entity ID that contains your data                                                                         |
-| `card`            | string   | **Required** | Card type: `heatmap`                                                                                      |
-| `title`           | string   | —            | Card title displayed at the top                                                                           |
-| `attribute`       | string   | `data`       | Entity attribute containing the data array                                                                |
-| `range`           | string   | `rolling`    | `rolling` (last 365 days) or `year` (calendar years)                                                      |
-| `years`           | number   | `1`          | Number of years to display (only for `range: year`)                                                       |
-| `baseColor`       | string   | `#40c463`    | Base color for the heatmap (hex format)                                                                   |
-| `backgroundColor` | string   | —            | Custom card background color                                                                              |
-| `levelCount`      | number   | `5`          | Number of intensity levels (2-10)                                                                         |
-| `levelThresholds` | number[] | —            | Custom percentile thresholds (must have `levelCount - 1` values)                                          |
-| `weekStartDay`    | string   | HA locale    | First day of week. Uses HA's locale setting by default. Override with `monday`, `mon`, `sunday`, or `sun` |
-| `show_legend`     | boolean  | `true`       | Show the Less/More legend                                                                                 |
+| Option            | Type     | Default      | Description                                                      |
+| ----------------- | -------- | ------------ | ---------------------------------------------------------------- |
+| `entity`          | string   | **Required** | Entity ID that contains your data                                |
+| `card`            | string   | **Required** | Card type: `heatmap`                                             |
+| `title`           | string   | —            | Card title displayed at the top                                  |
+| `attribute`       | string   | `data`       | Entity attribute containing the data array                       |
+| `range`           | string   | `rolling`    | `rolling` (last 365 days) or `year` (calendar years)             |
+| `years`           | number   | `1`          | Number of years to display (only for `range: year`)              |
+| `baseColor`       | string   | `#40c463`    | Base color for the heatmap (hex format)                          |
+| `backgroundColor` | string   | —            | Custom card background color                                     |
+| `levelCount`      | number   | `5`          | Number of intensity levels (2-10)                                |
+| `levelThresholds` | number[] | —            | Custom percentile thresholds (must have `levelCount - 1` values) |
+| `weekStartDay`    | string   | `monday`     | First day of week: `monday`, `mon`, `sunday`, or `sun`           |
+| `show_legend`     | boolean  | `true`       | Show the Less/More legend                                        |
 
 </details>
 

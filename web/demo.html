@@ -52,6 +52,21 @@
         background-color: #ddd;
       }
 
+      select {
+        padding: 8px 12px;
+        font-size: 14px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        background-color: white;
+        cursor: pointer;
+      }
+
+      body.dark select {
+        background-color: #21262d;
+        border-color: #30363d;
+        color: #c9d1d9;
+      }
+
       .demo-container {
         width: 100%;
         max-width: 850px;
@@ -116,6 +131,14 @@
         Toggle Dark/Light Mode
       </button>
       <button id="regen-data">Generate Random Data</button>
+      <select id="locale-select">
+        <option value="en">English</option>
+        <option value="nl">Dutch (Nederlands)</option>
+        <option value="de">German (Deutsch)</option>
+        <option value="fr">French (Français)</option>
+        <option value="es">Spanish (Español)</option>
+        <option value="ja">Japanese (unsupported)</option>
+      </select>
     </div>
 
     <div class="demo-container">
@@ -155,6 +178,7 @@
       const configThemed = document.getElementById('config-themed')
       const themeBtn = document.getElementById('theme-toggle')
       const regenBtn = document.getElementById('regen-data')
+      const localeSelect = document.getElementById('locale-select')
 
       // Mock Hass Object
       let mockHass = {
@@ -171,6 +195,9 @@
               data: [],
             },
           },
+        },
+        locale: {
+          language: 'en',
         },
       }
 
@@ -281,6 +308,9 @@
       cardBinary.setConfig(binaryConfig)
       cardThemed.setConfig(themedConfig)
 
+      // Sync mockHass with selector values (browser may restore them on refresh)
+      mockHass.locale.language = localeSelect.value
+
       // Initialize data
       mockHass.states['sensor.activity'].attributes.data = generateRandomData()
       mockHass.states['sensor.meditation'].attributes.data =
@@ -298,6 +328,11 @@
 
       themeBtn.addEventListener('click', () => {
         document.body.classList.toggle('dark')
+      })
+
+      localeSelect.addEventListener('change', (e) => {
+        mockHass.locale.language = e.target.value
+        updateAllCards()
       })
     </script>
   </body>

@@ -54,7 +54,7 @@ describe('validateConfig', () => {
 
       expect(config.range).toBe(CONFIG_DEFAULTS.range)
       expect(config.years).toBe(CONFIG_DEFAULTS.years)
-      expect(config.weekStartDay).toBeUndefined() // Defaults to HA locale
+      expect(config.weekStartDay).toBe(CONFIG_DEFAULTS.weekStartDay)
       expect(config.levelCount).toBe(CONFIG_DEFAULTS.levelCount)
       expect(config.baseColor).toBe(CONFIG_DEFAULTS.baseColor)
       expect(config.show_legend).toBe(CONFIG_DEFAULTS.show_legend)
@@ -152,19 +152,19 @@ describe('validateConfig', () => {
       ).toBe('monday')
     })
 
-    it('returns undefined for invalid weekStartDay (falls back to HA locale)', () => {
+    it('falls back to default for invalid weekStartDay', () => {
       expect(
         validateConfig(validConfig({ weekStartDay: 2 })).weekStartDay,
-      ).toBeUndefined()
+      ).toBe('monday')
       expect(
         validateConfig(validConfig({ weekStartDay: -1 })).weekStartDay,
-      ).toBeUndefined()
+      ).toBe('monday')
       expect(
         validateConfig(validConfig({ weekStartDay: 'tuesday' })).weekStartDay,
-      ).toBeUndefined()
+      ).toBe('monday')
       expect(
         validateConfig(validConfig({ weekStartDay: 'invalid' })).weekStartDay,
-      ).toBeUndefined()
+      ).toBe('monday')
     })
   })
 

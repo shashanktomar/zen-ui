@@ -8,7 +8,7 @@ import {
 import { generateColorScale } from './color-utils'
 import { validateConfig, weekStartDayToNumber, type CardConfig } from './config'
 import { baseStyles } from './shared/styles'
-import { t, firstWeekdayToIndex } from './shared/localize'
+import { t } from './shared/localize'
 import { getCardRenderer, getAllCardStyles } from './cards/registry'
 import type { Tooltip, CardRenderContext } from './cards/types'
 import {
@@ -306,18 +306,11 @@ export class ZenUI extends LitElement {
     const config = this._config!
     const today = config.end_date ? new Date(config.end_date) : new Date()
 
-    // Priority: explicit config > HA locale > default Monday
-    const haWeekStart = firstWeekdayToIndex(this.hass?.locale?.first_weekday)
-    const weekStart =
-      config.weekStartDay !== undefined
-        ? weekStartDayToNumber(config.weekStartDay)
-        : (haWeekStart ?? 1)
-
     return {
       mode: config.range === 'year' ? 'fixed' : 'rolling',
       years: config.years,
       targetYear: today.getFullYear(),
-      weekStartDay: weekStart as 0 | 1,
+      weekStartDay: weekStartDayToNumber(config.weekStartDay),
       levelCount: config.levelCount,
       levelThresholds: config.levelThresholds,
     }

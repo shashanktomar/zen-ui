@@ -18,6 +18,7 @@ export type CardType = 'heatmap'
 export const CONFIG_DEFAULTS = {
   range: 'rolling' as const,
   years: 1,
+  weekStartDay: 'monday' as WeekStartDay,
   levelCount: 5,
   baseColor: '#40c463',
   show_legend: true,
@@ -25,7 +26,7 @@ export const CONFIG_DEFAULTS = {
 } as const
 
 // Convert weekStartDay to pipeline format (0 = Sunday, 1 = Monday)
-export function weekStartDayToNumber(day: WeekStartDay | undefined): 0 | 1 {
+export function weekStartDayToNumber(day: WeekStartDay): 0 | 1 {
   return day === 'sunday' ? 0 : 1
 }
 
@@ -44,10 +45,9 @@ function withFallback<T>(schema: v.GenericSchema<unknown, T>, fallback: T) {
 }
 
 // Schema for weekStartDay: accepts string (case-insensitive) or legacy numbers
-// Returns undefined if not explicitly set (allows HA locale fallback)
 const WeekStartDaySchema = v.pipe(
   v.unknown(),
-  v.transform((input): WeekStartDay | undefined => {
+  v.transform((input): WeekStartDay => {
     if (typeof input === 'string') {
       const lower = input.toLowerCase()
       if (lower === 'sunday' || lower === 'sun') return 'sunday'
@@ -55,7 +55,7 @@ const WeekStartDaySchema = v.pipe(
     }
     if (input === 0) return 'sunday'
     if (input === 1) return 'monday'
-    return undefined
+    return CONFIG_DEFAULTS.weekStartDay
   }),
 )
 
@@ -131,7 +131,7 @@ const HeatmapConfigSchema = v.pipe(
     range: v.optional(RangeSchema, CONFIG_DEFAULTS.range),
     years: v.optional(YearsSchema, CONFIG_DEFAULTS.years),
     end_date: v.optional(v.string()),
-    weekStartDay: v.optional(WeekStartDaySchema),
+    weekStartDay: v.optional(WeekStartDaySchema, CONFIG_DEFAULTS.weekStartDay),
     levelCount: v.optional(LevelCountSchema, CONFIG_DEFAULTS.levelCount),
     levelThresholds: v.optional(v.array(v.number())),
     baseColor: v.optional(BaseColorSchema, CONFIG_DEFAULTS.baseColor),
