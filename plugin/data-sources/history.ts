@@ -5,6 +5,7 @@
  */
 
 import type { Hass, HassHistoryEntry, DataPoint } from './types'
+import { toLocalDateString } from '../shared/date'
 
 export interface FetchHistoryOptions {
   entityId: string
@@ -57,7 +58,8 @@ export function aggregateHistory(history: HassHistoryEntry[]): DataPoint[] {
     const state = parseFloat(entry.state)
     if (isNaN(state)) continue // Skip non-numeric states (e.g., 'unavailable')
 
-    const date = entry.last_changed.split('T')[0]
+    const date = toLocalDateString(entry.last_changed)
+    if (!date) continue
 
     if (!dailyData.has(date)) {
       dailyData.set(date, [])

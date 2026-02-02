@@ -6,6 +6,7 @@
  */
 
 import type { BoundedDay } from '../../data-pipeline'
+import { parseYmdDate } from '../../shared/date'
 
 export interface GridPosition {
   day: BoundedDay
@@ -29,12 +30,12 @@ export function calculateGridPositions(
 ): GridPosition[] {
   if (days.length === 0) return []
 
-  const firstDate = new Date(days[0].date)
+  const firstDate = parseYmdDate(days[0].date) ?? new Date(days[0].date)
   const firstDayOfWeek = firstDate.getDay()
   const firstDayOffset = (firstDayOfWeek - weekStartDay + 7) % 7
 
   return days.map((day, i) => {
-    const dayDate = new Date(day.date)
+    const dayDate = parseYmdDate(day.date) ?? new Date(day.date)
     const dayOfWeek = dayDate.getDay()
     const row = (dayOfWeek - weekStartDay + 7) % 7
     const col = Math.floor((i + firstDayOffset) / 7)

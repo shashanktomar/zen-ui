@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { aggregateStatistics, type StatisticsValue } from './statistics'
+import { toLocalDateString } from '../shared/date'
 
 describe('aggregateStatistics', () => {
   it('returns empty array for empty input', () => {
@@ -31,7 +32,7 @@ describe('aggregateStatistics', () => {
     const result = aggregateStatistics(stats, 'change')
 
     expect(result).toHaveLength(1)
-    expect(result[0].date).toBe('2025-01-27')
+    expect(result[0].date).toBe(toLocalDateString(1737982800000)!)
     expect(result[0].count).toBe(50)
   })
 
@@ -54,7 +55,7 @@ describe('aggregateStatistics', () => {
     const result = aggregateStatistics(stats, 'max')
 
     expect(result).toHaveLength(1)
-    expect(result[0].date).toBe('2025-01-27')
+    expect(result[0].date).toBe(toLocalDateString('2025-01-27T11:00:00.000Z')!)
     expect(result[0].count).toBe(40)
   })
 
@@ -152,9 +153,9 @@ describe('aggregateStatistics', () => {
     const result = aggregateStatistics(stats, 'change')
 
     expect(result).toHaveLength(2)
-    expect(result[0].date).toBe('2025-01-27')
+    expect(result[0].date).toBe(toLocalDateString(1737982800000)!)
     expect(result[0].count).toBe(50)
-    expect(result[1].date).toBe('2025-01-28')
+    expect(result[1].date).toBe(toLocalDateString(1738069200000)!)
     expect(result[1].count).toBe(30)
   })
 })

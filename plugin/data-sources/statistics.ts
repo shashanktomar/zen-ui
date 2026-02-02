@@ -7,6 +7,7 @@
  */
 
 import type { Hass, DataPoint } from './types'
+import { toLocalDateString } from '../shared/date'
 
 export type StatisticsPeriod = '5minute' | 'hour' | 'day' | 'week' | 'month'
 export type StatisticsType = 'mean' | 'min' | 'max' | 'sum' | 'state' | 'change'
@@ -74,15 +75,8 @@ export function aggregateStatistics(
     if (value === null || value === undefined) continue
 
     // Extract date from start - can be ISO string or Unix timestamp (milliseconds)
-    let date: string
-    if (typeof stat.start === 'string') {
-      date = stat.start.split('T')[0]
-    } else if (typeof stat.start === 'number') {
-      // Unix timestamp in milliseconds
-      date = new Date(stat.start).toISOString().split('T')[0]
-    } else {
-      continue
-    }
+    const date = toLocalDateString(stat.start)
+    if (!date) continue
 
     result.push({ date, count: value })
   }

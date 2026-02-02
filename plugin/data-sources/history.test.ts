@@ -15,18 +15,18 @@ describe('aggregateHistory', () => {
     const history: HassHistoryEntry[] = [
       {
         state: '10',
-        last_changed: '2025-01-27T08:00:00Z',
-        last_updated: '2025-01-27T08:00:00Z',
+        last_changed: '2025-01-27T08:00:00',
+        last_updated: '2025-01-27T08:00:00',
       },
       {
         state: '25',
-        last_changed: '2025-01-27T12:00:00Z',
-        last_updated: '2025-01-27T12:00:00Z',
+        last_changed: '2025-01-27T12:00:00',
+        last_updated: '2025-01-27T12:00:00',
       },
       {
         state: '15',
-        last_changed: '2025-01-27T18:00:00Z',
-        last_updated: '2025-01-27T18:00:00Z',
+        last_changed: '2025-01-27T18:00:00',
+        last_updated: '2025-01-27T18:00:00',
       },
     ]
 
@@ -41,18 +41,18 @@ describe('aggregateHistory', () => {
     const history: HassHistoryEntry[] = [
       {
         state: '10',
-        last_changed: '2025-01-27T08:00:00Z',
-        last_updated: '2025-01-27T08:00:00Z',
+        last_changed: '2025-01-27T08:00:00',
+        last_updated: '2025-01-27T08:00:00',
       },
       {
         state: '20',
-        last_changed: '2025-01-28T08:00:00Z',
-        last_updated: '2025-01-28T08:00:00Z',
+        last_changed: '2025-01-28T08:00:00',
+        last_updated: '2025-01-28T08:00:00',
       },
       {
         state: '30',
-        last_changed: '2025-01-29T08:00:00Z',
-        last_updated: '2025-01-29T08:00:00Z',
+        last_changed: '2025-01-29T08:00:00',
+        last_updated: '2025-01-29T08:00:00',
       },
     ]
 
@@ -68,23 +68,23 @@ describe('aggregateHistory', () => {
     const history: HassHistoryEntry[] = [
       {
         state: '10',
-        last_changed: '2025-01-27T08:00:00Z',
-        last_updated: '2025-01-27T08:00:00Z',
+        last_changed: '2025-01-27T08:00:00',
+        last_updated: '2025-01-27T08:00:00',
       },
       {
         state: 'unavailable',
-        last_changed: '2025-01-27T12:00:00Z',
-        last_updated: '2025-01-27T12:00:00Z',
+        last_changed: '2025-01-27T12:00:00',
+        last_updated: '2025-01-27T12:00:00',
       },
       {
         state: 'unknown',
-        last_changed: '2025-01-27T14:00:00Z',
-        last_updated: '2025-01-27T14:00:00Z',
+        last_changed: '2025-01-27T14:00:00',
+        last_updated: '2025-01-27T14:00:00',
       },
       {
         state: '20',
-        last_changed: '2025-01-27T18:00:00Z',
-        last_updated: '2025-01-27T18:00:00Z',
+        last_changed: '2025-01-27T18:00:00',
+        last_updated: '2025-01-27T18:00:00',
       },
     ]
 
@@ -98,15 +98,15 @@ describe('aggregateHistory', () => {
     const history = [
       {
         state: '10',
-        last_changed: '2025-01-27T08:00:00Z',
-        last_updated: '2025-01-27T08:00:00Z',
+        last_changed: '2025-01-27T08:00:00',
+        last_updated: '2025-01-27T08:00:00',
       },
       {
         state: '',
-        last_changed: '2025-01-27T12:00:00Z',
-        last_updated: '2025-01-27T12:00:00Z',
+        last_changed: '2025-01-27T12:00:00',
+        last_updated: '2025-01-27T12:00:00',
       },
-      { state: '20', last_changed: '', last_updated: '2025-01-27T14:00:00Z' },
+      { state: '20', last_changed: '', last_updated: '2025-01-27T14:00:00' },
     ] as HassHistoryEntry[]
 
     const result = aggregateHistory(history)
@@ -119,18 +119,18 @@ describe('aggregateHistory', () => {
     const history: HassHistoryEntry[] = [
       {
         state: '30',
-        last_changed: '2025-01-29T08:00:00Z',
-        last_updated: '2025-01-29T08:00:00Z',
+        last_changed: '2025-01-29T08:00:00',
+        last_updated: '2025-01-29T08:00:00',
       },
       {
         state: '10',
-        last_changed: '2025-01-27T08:00:00Z',
-        last_updated: '2025-01-27T08:00:00Z',
+        last_changed: '2025-01-27T08:00:00',
+        last_updated: '2025-01-27T08:00:00',
       },
       {
         state: '20',
-        last_changed: '2025-01-28T08:00:00Z',
-        last_updated: '2025-01-28T08:00:00Z',
+        last_changed: '2025-01-28T08:00:00',
+        last_updated: '2025-01-28T08:00:00',
       },
     ]
 
@@ -145,13 +145,13 @@ describe('aggregateHistory', () => {
     const history: HassHistoryEntry[] = [
       {
         state: '10.5',
-        last_changed: '2025-01-27T08:00:00Z',
-        last_updated: '2025-01-27T08:00:00Z',
+        last_changed: '2025-01-27T08:00:00',
+        last_updated: '2025-01-27T08:00:00',
       },
       {
         state: '20.7',
-        last_changed: '2025-01-27T12:00:00Z',
-        last_updated: '2025-01-27T12:00:00Z',
+        last_changed: '2025-01-27T12:00:00',
+        last_updated: '2025-01-27T12:00:00',
       },
     ]
 
@@ -164,13 +164,13 @@ describe('aggregateHistory', () => {
     const history: HassHistoryEntry[] = [
       {
         state: '-5',
-        last_changed: '2025-01-27T08:00:00Z',
-        last_updated: '2025-01-27T08:00:00Z',
+        last_changed: '2025-01-27T08:00:00',
+        last_updated: '2025-01-27T08:00:00',
       },
       {
         state: '-10',
-        last_changed: '2025-01-27T12:00:00Z',
-        last_updated: '2025-01-27T12:00:00Z',
+        last_changed: '2025-01-27T12:00:00',
+        last_updated: '2025-01-27T12:00:00',
       },
     ]
 

@@ -5,6 +5,8 @@
  * Handles date/data logic separately from rendering.
  */
 
+import { isYmdDate, toLocalDateString } from './shared/date'
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -44,15 +46,6 @@ export interface HeatmapData {
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
-
-/**
- * Validates that a string is in YYYY-MM-DD format
- */
-function isValidDateFormat(str: string): boolean {
-  return DATE_REGEX.test(str)
-}
 
 /**
  * Formats a Date as YYYY-MM-DD string
@@ -140,7 +133,7 @@ export function normalizeData(raw: unknown): ContributionData[] {
           'count' in item &&
           typeof item.date === 'string' &&
           typeof item.count === 'number' &&
-          isValidDateFormat(item.date),
+          isYmdDate(item.date),
       )
       .map((item) => ({ date: item.date, count: item.count }))
   }
@@ -152,9 +145,8 @@ export function normalizeData(raw: unknown): ContributionData[] {
     for (const item of raw) {
       if (typeof item !== 'string') continue
 
-      // Extract date portion (handles both YYYY-MM-DD and YYYY-MM-DDTHH:MM:SS)
-      const datePart = item.split('T')[0]
-      if (!isValidDateFormat(datePart)) continue
+      const datePart = toLocalDateString(item)
+      if (!datePart) continue
 
       counts[datePart] = (counts[datePart] || 0) + 1
     }

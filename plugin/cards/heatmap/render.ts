@@ -9,6 +9,7 @@ import type { HeatmapData } from '../../data-pipeline'
 import type { CardRenderContext } from '../types'
 import { calculateGridPositions } from './grid'
 import { t } from '../../shared/localize'
+import { parseYmdDate } from '../../shared/date'
 
 const RECT_SIZE = 10
 const GAP = 3
@@ -30,7 +31,7 @@ export function renderYearGraph(
 
   heatmapData.weeks.forEach((week, colIndex) => {
     for (const day of week) {
-      const date = new Date(day.date)
+      const date = parseYmdDate(day.date) ?? new Date(day.date)
       if (date.getDate() === 1) {
         const month = date.getMonth()
         if (!monthStartColumns.has(month)) {
