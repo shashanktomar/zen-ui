@@ -1,6 +1,10 @@
 import { LitElement, html } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
-import { processHeatmapData, type PipelineConfig } from './data-pipeline'
+import {
+  processHeatmapData,
+  calculateDateRanges,
+  type PipelineConfig,
+} from './data-pipeline'
 import { generateColorScale } from './color-utils'
 import { validateConfig, weekStartDayToNumber, type CardConfig } from './config'
 import { baseStyles } from './shared/styles'
@@ -180,9 +184,11 @@ export class ZenUI extends LitElement {
     this._error = undefined
 
     try {
-      const endDate = new Date()
-      const startDate = new Date()
-      startDate.setFullYear(startDate.getFullYear() - 1)
+      // Calculate date range using pipeline logic to ensure consistency
+      const pipelineConfig = this._getPipelineConfig()
+      const ranges = calculateDateRanges(pipelineConfig)
+      const startDate = ranges[0].startDate
+      const endDate = ranges[ranges.length - 1].endDate
 
       // Use statistics API for long-term data (not limited by purge_keep_days)
       const statistics = await fetchStatistics(this.hass, {

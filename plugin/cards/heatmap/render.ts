@@ -88,7 +88,11 @@ export function renderYearGraph(
           ${heatmapData.weeks.map(
             (week, wIndex) => svg`
                 <g transform="translate(${wIndex * STEP}, 0)">
-                    ${week.map((day, dIndex) => {
+                    ${week.map((day) => {
+                      // Calculate row position from actual day-of-week
+                      const dayOfWeek = new Date(day.date).getDay()
+                      const rowIndex =
+                        weekStart === 0 ? dayOfWeek : (dayOfWeek + 6) % 7
                       const color =
                         colorScale[day.level] ??
                         colorScale[colorScale.length - 1]
@@ -97,7 +101,7 @@ export function renderYearGraph(
                                 width="${RECT_SIZE}"
                                 height="${RECT_SIZE}"
                                 x="0"
-                                y="${dIndex * STEP}"
+                                y="${rowIndex * STEP}"
                                 fill="${color}"
                                 style="cursor: pointer;"
                                 @mouseenter=${(e: MouseEvent) => context.onCellMouseEnter(e, day.date, day.count)}
