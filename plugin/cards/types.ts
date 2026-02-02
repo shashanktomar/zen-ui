@@ -20,6 +20,7 @@ export interface CardRenderContext {
   data: HeatmapData[]
   colorScale: string[]
   darkMode: boolean
+  locale: string
   tooltip?: Tooltip
   onCellMouseEnter: (e: MouseEvent, date: string, count: number) => void
   onCellMouseLeave: () => void

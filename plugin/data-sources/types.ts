@@ -32,6 +32,18 @@ export interface Hass {
   themes?: {
     darkMode?: boolean
   }
+  locale?: {
+    language: string
+    first_weekday?:
+      | 'language'
+      | 'monday'
+      | 'tuesday'
+      | 'wednesday'
+      | 'thursday'
+      | 'friday'
+      | 'saturday'
+      | 'sunday'
+  }
 }
 
 // Data source result

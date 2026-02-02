@@ -403,6 +403,7 @@ export class ZenUI extends LitElement {
       data,
       colorScale,
       darkMode: this._darkMode,
+      locale: this.hass?.locale?.language ?? 'en',
       tooltip: this._tooltip,
       onCellMouseEnter: this._onCellMouseEnter,
       onCellMouseLeave: this._onCellMouseLeave,
