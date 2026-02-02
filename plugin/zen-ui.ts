@@ -8,6 +8,7 @@ import {
 import { generateColorScale } from './color-utils'
 import { validateConfig, weekStartDayToNumber, type CardConfig } from './config'
 import { baseStyles } from './shared/styles'
+import { t } from './shared/localize'
 import { getCardRenderer, getAllCardStyles } from './cards/registry'
 import type { Tooltip, CardRenderContext } from './cards/types'
 import {
@@ -340,9 +341,13 @@ export class ZenUI extends LitElement {
     this._tooltip = undefined
   }
 
+  private _getLocale(): string {
+    return this.hass?.locale?.language ?? 'en'
+  }
+
   private _formatTooltipDate(dateStr: string): string {
-    const date = new Date(dateStr)
-    return date.toLocaleDateString('default', {
+    const date = new Date(dateStr + 'T12:00:00')
+    return date.toLocaleDateString(this._getLocale(), {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
@@ -364,7 +369,7 @@ export class ZenUI extends LitElement {
           ${this._config.title
             ? html`<div class="header">${this._config.title}</div>`
             : ''}
-          <div class="loading">Loading history...</div>
+          <div class="loading">${t('loading', this._getLocale())}</div>
         </ha-card>
       `
     }
@@ -376,7 +381,7 @@ export class ZenUI extends LitElement {
           ${this._config.title
             ? html`<div class="header">${this._config.title}</div>`
             : ''}
-          <div class="error">${this._error}</div>
+          <div class="error">${t('error', this._getLocale())}</div>
         </ha-card>
       `
     }
@@ -393,7 +398,7 @@ export class ZenUI extends LitElement {
           ${this._config.title
             ? html`<div class="header">${this._config.title}</div>`
             : ''}
-          <div class="empty">No data available</div>
+          <div class="empty">${t('noData', this._getLocale())}</div>
         </ha-card>
       `
     }
@@ -403,7 +408,7 @@ export class ZenUI extends LitElement {
       data,
       colorScale,
       darkMode: this._darkMode,
-      locale: this.hass?.locale?.language ?? 'en',
+      locale: this._getLocale(),
       tooltip: this._tooltip,
       onCellMouseEnter: this._onCellMouseEnter,
       onCellMouseLeave: this._onCellMouseLeave,
