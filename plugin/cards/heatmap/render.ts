@@ -132,10 +132,35 @@ export function renderYearGraph(
   `
 }
 
+export interface LegendOptions {
+  isDiverging?: boolean
+  minValue?: number
+  maxValue?: number
+}
+
+/**
+ * Formats a value for diverging legend display.
+ * Positive values get a "+" prefix, zero is just "0", negatives have "-".
+ * Uses locale-aware formatting with reasonable precision.
+ */
+function formatDivergingValue(val: number, locale: string): string {
+  const isInteger = Number.isInteger(val)
+  const formatted = isInteger
+    ? val.toLocaleString(locale)
+    : val.toLocaleString(locale, { maximumFractionDigits: 1 })
+
+  if (val > 0) return `+${formatted}`
+  if (val === 0) return '0'
+  return formatted // negative already has "-"
+}
+
 export function renderLegend(
   colorScale: string[],
   locale: string,
+  options?: LegendOptions,
 ): TemplateResult {
+  const { isDiverging, minValue, maxValue } = options ?? {}
+
   const legendItems = colorScale.map((color) => {
     const style =
       color === 'transparent'
@@ -144,11 +169,27 @@ export function renderLegend(
     return html`<div class="legend-item" style="${style}"></div>`
   })
 
+  // For diverging mode, show actual min/max values if available
+  const hasValidRange =
+    typeof minValue === 'number' &&
+    typeof maxValue === 'number' &&
+    Number.isFinite(minValue) &&
+    Number.isFinite(maxValue)
+
+  const minLabel =
+    isDiverging && hasValidRange
+      ? formatDivergingValue(minValue, locale)
+      : t('less', locale)
+  const maxLabel =
+    isDiverging && hasValidRange
+      ? formatDivergingValue(maxValue, locale)
+      : t('more', locale)
+
   return html`
     <div class="legend">
-      <span>${t('less', locale)}</span>
+      <span>${minLabel}</span>
       ${legendItems}
-      <span>${t('more', locale)}</span>
+      <span>${maxLabel}</span>
     </div>
   `
 }

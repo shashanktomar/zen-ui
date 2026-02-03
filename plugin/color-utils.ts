@@ -4,6 +4,13 @@
  * HSL-based color scale generation for heatmap levels.
  */
 
+// Shared hex color validation
+export const HEX_COLOR_REGEX = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/
+
+export function isValidHexColor(color: string | undefined): color is string {
+  return typeof color === 'string' && HEX_COLOR_REGEX.test(color)
+}
+
 export interface HSL {
   h: number // 0-360
   s: number // 0-100
@@ -138,6 +145,119 @@ export function generateColorScale(
   }
 
   return colors
+}
+
+export interface DivergingColorScaleOptions {
+  darkMode?: boolean
+}
+
+/**
+ * Generates a diverging color scale with two color ramps meeting at a neutral point.
+ *
+ * @param negativeColor - Hex color for values below neutral (e.g., "#d73027" red)
+ * @param positiveColor - Hex color for values above neutral (e.g., "#1a9850" green)
+ * @param levelCount - Number of levels (must be odd, ≥3)
+ * @param neutralLevel - Which level index is the neutral point
+ * @param options - Optional configuration
+ * @returns Array of CSS color strings, indexed by level
+ */
+export function generateDivergingColorScale(
+  negativeColor: string,
+  positiveColor: string,
+  levelCount: number,
+  neutralLevel: number,
+  options: DivergingColorScaleOptions = {},
+): string[] {
+  const { darkMode = false } = options
+
+  const negHSL = hexToHSL(negativeColor)
+  const posHSL = hexToHSL(positiveColor)
+
+  // Calculate neutral color: average hue with very low saturation
+  const neutralHue = averageHue(negHSL.h, posHSL.h)
+  const neutralSaturation = 8 // Very low saturation for neutral
+  // Clamp lightness to safe band for readability
+  const neutralLightness = darkMode ? 28 : 90
+
+  const colors: string[] = []
+
+  // Lightness ranges for the ramps (subtle range for better aesthetics)
+  const lightRange = darkMode
+    ? { light: 35, dark: 55 } // Dark mode: dark to bright
+    : { light: 80, dark: 55 } // Light mode: light to dark (subtle)
+
+  for (let i = 0; i < levelCount; i++) {
+    if (i === neutralLevel) {
+      // Neutral level
+      colors.push(
+        hslToCSS({ h: neutralHue, s: neutralSaturation, l: neutralLightness }),
+      )
+    } else if (i < neutralLevel) {
+      // Negative ramp: level 0 is most intense negative, approaches neutral
+      const negLevels = neutralLevel // Number of levels in negative ramp (excluding neutral)
+      if (negLevels === 0) {
+        // Edge case: neutralLevel is 0, no negative ramp
+        colors.push(
+          hslToCSS({
+            h: neutralHue,
+            s: neutralSaturation,
+            l: neutralLightness,
+          }),
+        )
+      } else {
+        // t: 0 = most negative (level 0), 1 = closest to neutral
+        const t = i / negLevels
+        const l = darkMode
+          ? lightRange.dark - t * (lightRange.dark - neutralLightness)
+          : lightRange.dark + t * (neutralLightness - lightRange.dark)
+        // Saturation: full at edges, decreases toward neutral
+        const s = negHSL.s * (1 - t * 0.5)
+        colors.push(
+          hslToCSS({ h: negHSL.h, s: Math.round(s), l: Math.round(l) }),
+        )
+      }
+    } else {
+      // Positive ramp: approaches neutral from above, level N-1 is most intense
+      const posLevels = levelCount - 1 - neutralLevel // Number of levels in positive ramp (excluding neutral)
+      if (posLevels === 0) {
+        // Edge case: neutralLevel is at max, no positive ramp
+        colors.push(
+          hslToCSS({
+            h: neutralHue,
+            s: neutralSaturation,
+            l: neutralLightness,
+          }),
+        )
+      } else {
+        // t: 0 = closest to neutral, 1 = most positive (level N-1)
+        const t = (i - neutralLevel) / posLevels
+        const l = darkMode
+          ? neutralLightness + t * (lightRange.dark - neutralLightness)
+          : neutralLightness - t * (neutralLightness - lightRange.dark)
+        // Saturation: increases from neutral toward edges
+        const s = posHSL.s * (0.5 + t * 0.5)
+        colors.push(
+          hslToCSS({ h: posHSL.h, s: Math.round(s), l: Math.round(l) }),
+        )
+      }
+    }
+  }
+
+  return colors
+}
+
+/**
+ * Calculates the average of two hue values, accounting for circular hue space.
+ */
+function averageHue(h1: number, h2: number): number {
+  // Handle circular hue (0-360)
+  const diff = Math.abs(h1 - h2)
+  if (diff <= 180) {
+    return Math.round((h1 + h2) / 2)
+  }
+  // Go the "short way" around the circle
+  const avg = (h1 + h2 + 360) / 2
+  return Math.round(avg % 360)
 }
 
 /**

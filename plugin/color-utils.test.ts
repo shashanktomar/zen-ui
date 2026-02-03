@@ -3,6 +3,7 @@ import {
   hexToHSL,
   hslToCSS,
   generateColorScale,
+  generateDivergingColorScale,
   DEFAULT_BASE_COLOR,
 } from './color-utils'
 
@@ -213,6 +214,198 @@ describe('generateColorScale', () => {
       if (levelCount === 2) {
         expect(colors[1]).toBe(baseColor)
       }
+    })
+  })
+})
+
+describe('generateDivergingColorScale', () => {
+  const negativeColor = '#d73027' // Red
+  const positiveColor = '#1a9850' // Green
+
+  // Helper to extract hue from HSL string
+  const getHue = (hsl: string): number => {
+    const match = hsl.match(/hsl\((\d+),/)
+    return match ? parseInt(match[1]) : -1
+  }
+
+  // Helper to extract saturation from HSL string
+  const getSaturation = (hsl: string): number => {
+    const match = hsl.match(/hsl\(\d+, (\d+)%/)
+    return match ? parseInt(match[1]) : -1
+  }
+
+  it('generates correct number of colors', () => {
+    expect(
+      generateDivergingColorScale(negativeColor, positiveColor, 3, 1),
+    ).toHaveLength(3)
+    expect(
+      generateDivergingColorScale(negativeColor, positiveColor, 5, 2),
+    ).toHaveLength(5)
+    expect(
+      generateDivergingColorScale(negativeColor, positiveColor, 7, 3),
+    ).toHaveLength(7)
+  })
+
+  describe('symmetric neutral (center)', () => {
+    it('neutral level has very low saturation', () => {
+      const colors = generateDivergingColorScale(
+        negativeColor,
+        positiveColor,
+        5,
+        2,
+      )
+      const neutralSaturation = getSaturation(colors[2])
+      expect(neutralSaturation).toBeLessThanOrEqual(10)
+    })
+
+    it('levels below neutral use negative color hue', () => {
+      const colors = generateDivergingColorScale(
+        negativeColor,
+        positiveColor,
+        5,
+        2,
+      )
+      const negativeHue = hexToHSL(negativeColor).h
+      // Level 0 and 1 should use negative hue
+      expect(getHue(colors[0])).toBeCloseTo(negativeHue, -1)
+      expect(getHue(colors[1])).toBeCloseTo(negativeHue, -1)
+    })
+
+    it('levels above neutral use positive color hue', () => {
+      const colors = generateDivergingColorScale(
+        negativeColor,
+        positiveColor,
+        5,
+        2,
+      )
+      const positiveHue = hexToHSL(positiveColor).h
+      // Level 3 and 4 should use positive hue
+      expect(getHue(colors[3])).toBeCloseTo(positiveHue, -1)
+      expect(getHue(colors[4])).toBeCloseTo(positiveHue, -1)
+    })
+  })
+
+  describe('asymmetric neutral', () => {
+    it('neutral at level 1 creates more positive levels', () => {
+      const colors = generateDivergingColorScale(
+        negativeColor,
+        positiveColor,
+        5,
+        1,
+      )
+      // Level 0: negative, Level 1: neutral, Levels 2-4: positive
+      expect(getSaturation(colors[1])).toBeLessThanOrEqual(10) // Neutral
+      expect(colors).toHaveLength(5)
+    })
+
+    it('neutral at level 3 creates more negative levels', () => {
+      const colors = generateDivergingColorScale(
+        negativeColor,
+        positiveColor,
+        5,
+        3,
+      )
+      // Levels 0-2: negative, Level 3: neutral, Level 4: positive
+      expect(getSaturation(colors[3])).toBeLessThanOrEqual(10) // Neutral
+    })
+  })
+
+  describe('edge cases', () => {
+    it('neutral at level 0 (all positive)', () => {
+      const colors = generateDivergingColorScale(
+        negativeColor,
+        positiveColor,
+        5,
+        0,
+      )
+      expect(getSaturation(colors[0])).toBeLessThanOrEqual(10) // Neutral at 0
+      // All other levels should be positive
+      const positiveHue = hexToHSL(positiveColor).h
+      for (let i = 1; i < 5; i++) {
+        expect(getHue(colors[i])).toBeCloseTo(positiveHue, -1)
+      }
+    })
+
+    it('neutral at max level (all negative)', () => {
+      const colors = generateDivergingColorScale(
+        negativeColor,
+        positiveColor,
+        5,
+        4,
+      )
+      expect(getSaturation(colors[4])).toBeLessThanOrEqual(10) // Neutral at 4
+      // All other levels should be negative
+      const negativeHue = hexToHSL(negativeColor).h
+      for (let i = 0; i < 4; i++) {
+        expect(getHue(colors[i])).toBeCloseTo(negativeHue, -1)
+      }
+    })
+  })
+
+  describe('dark mode', () => {
+    it('generates valid colors in dark mode', () => {
+      const colors = generateDivergingColorScale(
+        negativeColor,
+        positiveColor,
+        5,
+        2,
+        { darkMode: true },
+      )
+
+      expect(colors).toHaveLength(5)
+      for (const color of colors) {
+        expect(color).toMatch(/^hsl\(\d+, \d+%, \d+%\)$/)
+      }
+    })
+
+    it('neutral has different lightness in dark mode', () => {
+      const lightColors = generateDivergingColorScale(
+        negativeColor,
+        positiveColor,
+        5,
+        2,
+      )
+      const darkColors = generateDivergingColorScale(
+        negativeColor,
+        positiveColor,
+        5,
+        2,
+        { darkMode: true },
+      )
+
+      const getLightness = (hsl: string): number => {
+        const match = hsl.match(/hsl\(\d+, \d+%, (\d+)%\)/)
+        return match ? parseInt(match[1]) : -1
+      }
+
+      // Dark mode neutral should be darker than light mode neutral
+      expect(getLightness(darkColors[2])).toBeLessThan(
+        getLightness(lightColors[2]),
+      )
+    })
+  })
+
+  describe('various level counts', () => {
+    const levelCounts = [3, 5, 7, 9]
+
+    it.each(levelCounts)('generates %i levels correctly', (levelCount) => {
+      const neutralLevel = Math.floor(levelCount / 2)
+      const colors = generateDivergingColorScale(
+        negativeColor,
+        positiveColor,
+        levelCount,
+        neutralLevel,
+      )
+
+      expect(colors).toHaveLength(levelCount)
+
+      // All levels should be valid HSL
+      for (const color of colors) {
+        expect(color).toMatch(/^hsl\(\d+, \d+%, \d+%\)$/)
+      }
+
+      // Neutral level should have low saturation
+      expect(getSaturation(colors[neutralLevel])).toBeLessThanOrEqual(10)
     })
   })
 })

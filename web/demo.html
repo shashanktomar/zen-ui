@@ -177,6 +177,20 @@
       <div class="config-display" id="config-negative"></div>
     </div>
 
+    <div class="demo-container">
+      <div class="demo-label">Diverging Colors (red ↔ neutral ↔ green)</div>
+      <zen-ui id="card-diverging"></zen-ui>
+      <div class="config-display" id="config-diverging"></div>
+    </div>
+
+    <div class="demo-container">
+      <div class="demo-label">
+        Diverging with Custom Neutral (neutralValue: 50)
+      </div>
+      <zen-ui id="card-diverging-custom"></zen-ui>
+      <div class="config-display" id="config-diverging-custom"></div>
+    </div>
+
     <script type="module">
       import '../plugin/zen-ui.ts'
 
@@ -186,12 +200,20 @@
       const cardThemed = document.getElementById('card-themed')
       const cardMissing = document.getElementById('card-missing')
       const cardNegative = document.getElementById('card-negative')
+      const cardDiverging = document.getElementById('card-diverging')
+      const cardDivergingCustom = document.getElementById(
+        'card-diverging-custom',
+      )
       const configRolling = document.getElementById('config-rolling')
       const configMultiyear = document.getElementById('config-multiyear')
       const configBinary = document.getElementById('config-binary')
       const configThemed = document.getElementById('config-themed')
       const configMissing = document.getElementById('config-missing')
       const configNegative = document.getElementById('config-negative')
+      const configDiverging = document.getElementById('config-diverging')
+      const configDivergingCustom = document.getElementById(
+        'config-diverging-custom',
+      )
       const themeBtn = document.getElementById('theme-toggle')
       const regenBtn = document.getElementById('regen-data')
       const localeSelect = document.getElementById('locale-select')
@@ -218,6 +240,18 @@
             },
           },
           'sensor.energy': {
+            state: 'on',
+            attributes: {
+              data: [],
+            },
+          },
+          'sensor.temperature_delta': {
+            state: 'on',
+            attributes: {
+              data: [],
+            },
+          },
+          'sensor.score': {
             state: 'on',
             attributes: {
               data: [],
@@ -333,6 +367,50 @@
         return data
       }
 
+      function generateTemperatureDeltaData() {
+        const data = []
+        const today = new Date()
+        const start = new Date(
+          today.getFullYear() - 1,
+          today.getMonth(),
+          today.getDate(),
+        )
+        const end = new Date(today)
+
+        const itr = new Date(start)
+        while (itr <= end) {
+          const dateStr = itr.toISOString().split('T')[0]
+          // Temperature delta: symmetric around 0, range roughly -10 to +10
+          // Simulates daily temperature variance from average
+          const count = Math.round((Math.random() - 0.5) * 20)
+          data.push({ date: dateStr, count })
+          itr.setDate(itr.getDate() + 1)
+        }
+        return data
+      }
+
+      function generateScoreData() {
+        const data = []
+        const today = new Date()
+        const start = new Date(
+          today.getFullYear() - 1,
+          today.getMonth(),
+          today.getDate(),
+        )
+        const end = new Date(today)
+
+        const itr = new Date(start)
+        while (itr <= end) {
+          const dateStr = itr.toISOString().split('T')[0]
+          // Score data: 0-100, centered around 50
+          // Simulates daily performance scores
+          const count = Math.floor(Math.random() * 100)
+          data.push({ date: dateStr, count })
+          itr.setDate(itr.getDate() + 1)
+        }
+        return data
+      }
+
       function updateAllCards() {
         const hass = { ...mockHass }
         cardRolling.hass = hass
@@ -341,6 +419,8 @@
         cardThemed.hass = hass
         cardMissing.hass = hass
         cardNegative.hass = hass
+        cardDiverging.hass = hass
+        cardDivergingCustom.hass = hass
       }
 
       // Initial configs
@@ -390,6 +470,24 @@
         baseColor: '#238636',
       }
 
+      const divergingConfig = {
+        card: 'heatmap',
+        entity: 'sensor.temperature_delta',
+        title: 'Temperature Variance',
+        negativeColor: '#89b4fa', // Catppuccin Mocha Blue
+        positiveColor: '#fab387', // Catppuccin Mocha Peach
+      }
+
+      const divergingCustomConfig = {
+        card: 'heatmap',
+        entity: 'sensor.score',
+        title: 'Performance Score',
+        negativeColor: '#eba0ac', // Catppuccin Mocha Maroon
+        positiveColor: '#94e2d5', // Catppuccin Mocha Teal
+        neutralValue: 50,
+        levelCount: 7,
+      }
+
       // Convert config to YAML format
       function toYaml(config) {
         let yaml = 'type: custom:zen-ui\n'
@@ -406,6 +504,8 @@
       configThemed.textContent = toYaml(themedConfig)
       configMissing.textContent = toYaml(missingConfig)
       configNegative.textContent = toYaml(negativeConfig)
+      configDiverging.textContent = toYaml(divergingConfig)
+      configDivergingCustom.textContent = toYaml(divergingCustomConfig)
 
       // Initialize configs
       cardRolling.setConfig(rollingConfig)
@@ -414,6 +514,8 @@
       cardThemed.setConfig(themedConfig)
       cardMissing.setConfig(missingConfig)
       cardNegative.setConfig(negativeConfig)
+      cardDiverging.setConfig(divergingConfig)
+      cardDivergingCustom.setConfig(divergingCustomConfig)
 
       // Sync mockHass with selector values (browser may restore them on refresh)
       mockHass.locale.language = localeSelect.value
@@ -424,6 +526,9 @@
         generateBinaryData()
       mockHass.states['sensor.sparse'].attributes.data = generateSparseData()
       mockHass.states['sensor.energy'].attributes.data = generateEnergyData()
+      mockHass.states['sensor.temperature_delta'].attributes.data =
+        generateTemperatureDeltaData()
+      mockHass.states['sensor.score'].attributes.data = generateScoreData()
       updateAllCards()
 
       // Event Listeners
@@ -434,6 +539,9 @@
           generateBinaryData()
         mockHass.states['sensor.sparse'].attributes.data = generateSparseData()
         mockHass.states['sensor.energy'].attributes.data = generateEnergyData()
+        mockHass.states['sensor.temperature_delta'].attributes.data =
+          generateTemperatureDeltaData()
+        mockHass.states['sensor.score'].attributes.data = generateScoreData()
         updateAllCards()
       })
 

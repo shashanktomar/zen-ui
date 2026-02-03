@@ -5,7 +5,11 @@ import {
   calculateDateRanges,
   type PipelineConfig,
 } from './data-pipeline'
-import { generateColorScale } from './color-utils'
+import {
+  generateColorScale,
+  generateDivergingColorScale,
+  isValidHexColor,
+} from './color-utils'
 import { validateConfig, weekStartDayToNumber, type CardConfig } from './config'
 import { baseStyles } from './shared/styles'
 import { t } from './shared/localize'
@@ -302,25 +306,91 @@ export class ZenUI extends LitElement {
     return data
   }
 
+  /**
+   * Checks if diverging color mode is enabled.
+   * Requires both negativeColor and positiveColor to be valid hex colors.
+   */
+  private _isDiverging(): boolean {
+    if (!this._config) return false
+    return (
+      isValidHexColor(this._config.negativeColor) &&
+      isValidHexColor(this._config.positiveColor)
+    )
+  }
+
+  /**
+   * Gets the effective level count, adjusting for diverging mode requirements.
+   * Diverging mode requires odd levelCount >= 3.
+   */
+  private _getEffectiveLevelCount(): number {
+    const config = this._config!
+    let levelCount = config.levelCount ?? 5
+
+    if (this._isDiverging()) {
+      levelCount = Math.max(3, levelCount)
+      if (levelCount % 2 === 0) levelCount++
+    }
+
+    return levelCount
+  }
+
   private _getPipelineConfig(): PipelineConfig {
     const config = this._config!
     const today = config.end_date ? new Date(config.end_date) : new Date()
+    const isDiverging = this._isDiverging()
+    const originalLevelCount = config.levelCount ?? 5
+    const effectiveLevelCount = this._getEffectiveLevelCount()
+
+    // Warn if diverging overrides clamp_zero
+    if (isDiverging && config.valueMode === 'clamp_zero') {
+      console.warn(
+        'zen-ui: diverging colors require valueMode "range", ignoring clamp_zero',
+      )
+    }
+
+    // Drop thresholds if levelCount was adjusted for diverging
+    let levelThresholds = config.levelThresholds
+    if (
+      isDiverging &&
+      config.levelThresholds &&
+      effectiveLevelCount !== originalLevelCount
+    ) {
+      console.warn(
+        'zen-ui: levelThresholds ignored because levelCount was adjusted for diverging mode',
+      )
+      levelThresholds = undefined
+    }
 
     return {
       mode: config.range === 'year' ? 'fixed' : 'rolling',
       years: config.years,
       targetYear: today.getFullYear(),
       weekStartDay: weekStartDayToNumber(config.weekStartDay),
-      levelCount: config.levelCount,
-      levelThresholds: config.levelThresholds,
+      levelCount: effectiveLevelCount,
+      levelThresholds,
       missingMode: config.missingMode,
-      valueMode: config.valueMode,
+      // Force range mode for diverging
+      valueMode: isDiverging ? 'range' : config.valueMode,
+      isDiverging,
+      neutralValue: config.neutralValue,
     }
   }
 
-  private _getColorScale(): string[] {
+  private _getColorScale(neutralLevel?: number): string[] {
     const config = this._config!
-    return generateColorScale(config.baseColor, config.levelCount, {
+    const effectiveLevelCount = this._getEffectiveLevelCount()
+
+    if (this._isDiverging()) {
+      return generateDivergingColorScale(
+        config.negativeColor!,
+        config.positiveColor!,
+        effectiveLevelCount,
+        neutralLevel ?? Math.floor(effectiveLevelCount / 2),
+        { darkMode: this._darkMode },
+      )
+    }
+
+    return generateColorScale(config.baseColor, effectiveLevelCount, {
       darkMode: this._darkMode,
     })
   }
@@ -394,7 +464,9 @@ export class ZenUI extends LitElement {
     const rawData = this._getRawData()
     const pipelineConfig = this._getPipelineConfig()
     const data = processHeatmapData(pipelineConfig, rawData)
-    const colorScale = this._getColorScale()
+    // Get neutralLevel from first heatmap data (all should have same neutralLevel)
+    const neutralLevel = data[0]?.neutralLevel
+    const colorScale = this._getColorScale(neutralLevel)
 
     if (data.length === 0) {
       return html`

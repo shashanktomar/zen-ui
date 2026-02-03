@@ -4,6 +4,7 @@ import {
   calculateDateRanges,
   getLevel,
   calculateEvenThresholds,
+  calculateNeutralLevel,
   boundDataToRange,
   processHeatmapData,
   type PipelineConfig,
@@ -1176,5 +1177,150 @@ describe('processHeatmapData', () => {
       expect(result[0].minCount).toBe(-20)
       expect(result[0].maxCount).toBe(30)
     })
+  })
+
+  describe('diverging mode (isDiverging: true)', () => {
+    it('calculates neutralLevel for symmetric data around zero', () => {
+      const config: PipelineConfig = {
+        mode: 'fixed',
+        years: 1,
+        isDiverging: true,
+      }
+      const rawData = [
+        { date: '2024-01-10', count: -10 },
+        { date: '2024-01-11', count: 0 },
+        { date: '2024-01-12', count: 10 },
+      ]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      // Zero should be at the center level (level 2 for levelCount 5)
+      expect(result[0].neutralLevel).toBe(2)
+      expect(result[0].minCount).toBe(-10)
+      expect(result[0].maxCount).toBe(10)
+    })
+
+    it('calculates neutralLevel for asymmetric data', () => {
+      const config: PipelineConfig = {
+        mode: 'fixed',
+        years: 1,
+        isDiverging: true,
+      }
+      // Asymmetric: -5 to +15, so 0 is at 25% → level 1
+      const rawData = [
+        { date: '2024-01-10', count: -5 },
+        { date: '2024-01-11', count: 15 },
+      ]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      // 0 is at 25% of range [-5, 15], so level = round(0.25 * 4) = 1
+      expect(result[0].neutralLevel).toBe(1)
+    })
+
+    it('uses explicit neutralValue when provided', () => {
+      const config: PipelineConfig = {
+        mode: 'fixed',
+        years: 1,
+        isDiverging: true,
+        neutralValue: 5, // Custom neutral at 5
+      }
+      const rawData = [
+        { date: '2024-01-10', count: 0 },
+        { date: '2024-01-11', count: 10 },
+      ]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      // 5 is at 50% of range [0, 10], so level = round(0.5 * 4) = 2
+      expect(result[0].neutralLevel).toBe(2)
+    })
+
+    it('clamps neutralValue outside data range', () => {
+      const config: PipelineConfig = {
+        mode: 'fixed',
+        years: 1,
+        isDiverging: true,
+        neutralValue: 100, // Outside range [0, 10]
+      }
+      const rawData = [
+        { date: '2024-01-10', count: 0 },
+        { date: '2024-01-11', count: 10 },
+      ]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      // Clamped to max (10) → 100% → level 4
+      expect(result[0].neutralLevel).toBe(4)
+    })
+
+    it('forces missingMode to transparent', () => {
+      const config: PipelineConfig = {
+        mode: 'fixed',
+        years: 1,
+        isDiverging: true,
+        missingMode: 'zero', // Should be ignored
+      }
+      const rawData = [{ date: '2024-01-15', count: 5 }]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      const allDays = result[0].weeks.flat()
+      const missingDay = allDays.find((d) => d.date === '2024-01-10')
+      expect(missingDay?.missing).toBe(true)
+    })
+  })
+})
+
+describe('calculateNeutralLevel', () => {
+  it('returns center level when min equals max', () => {
+    expect(calculateNeutralLevel(5, 5, 5)).toBe(2)
+    expect(calculateNeutralLevel(0, 0, 5)).toBe(2)
+    expect(calculateNeutralLevel(-5, -5, 5)).toBe(2)
+  })
+
+  it('defaults to 0 when zero is in range', () => {
+    // Range [-10, 10], zero is at 50% → level 2
+    expect(calculateNeutralLevel(-10, 10, 5)).toBe(2)
+    // Range [-20, 5], zero is at 80% → level 3
+    expect(calculateNeutralLevel(-20, 5, 5)).toBe(3)
+    // Range [-5, 20], zero is at 20% → level 1
+    expect(calculateNeutralLevel(-5, 20, 5)).toBe(1)
+  })
+
+  it('defaults to midpoint when zero is not in range', () => {
+    // Range [5, 15], midpoint is 10 at 50% → level 2
+    expect(calculateNeutralLevel(5, 15, 5)).toBe(2)
+    // Range [-15, -5], midpoint is -10 at 50% → level 2
+    expect(calculateNeutralLevel(-15, -5, 5)).toBe(2)
+  })
+
+  it('uses explicit neutralValue when provided', () => {
+    // Range [0, 10], neutralValue 5 is at 50% → level 2
+    expect(calculateNeutralLevel(0, 10, 5, 5)).toBe(2)
+    // Range [0, 10], neutralValue 2 is at 20% → level 1
+    expect(calculateNeutralLevel(0, 10, 5, 2)).toBe(1)
+    // Range [0, 10], neutralValue 8 is at 80% → level 3
+    expect(calculateNeutralLevel(0, 10, 5, 8)).toBe(3)
+  })
+
+  it('clamps neutralValue to data range', () => {
+    // neutralValue 100 with range [0, 10] → clamped to 10 → level 4
+    expect(calculateNeutralLevel(0, 10, 5, 100)).toBe(4)
+    // neutralValue -100 with range [0, 10] → clamped to 0 → level 0
+    expect(calculateNeutralLevel(0, 10, 5, -100)).toBe(0)
+  })
+
+  it('handles invalid neutralValue (NaN, Infinity)', () => {
+    // NaN should fall back to default (0 in range)
+    expect(calculateNeutralLevel(-10, 10, 5, NaN)).toBe(2)
+    // Infinity should fall back to default
+    expect(calculateNeutralLevel(-10, 10, 5, Infinity)).toBe(2)
+    // -Infinity should fall back to default
+    expect(calculateNeutralLevel(-10, 10, 5, -Infinity)).toBe(2)
+  })
+
+  it('works with different level counts', () => {
+    // levelCount 3, zero in range [-10, 10] at 50% → level 1
+    expect(calculateNeutralLevel(-10, 10, 3)).toBe(1)
+    // levelCount 7, zero in range [-10, 10] at 50% → level 3
+    expect(calculateNeutralLevel(-10, 10, 7)).toBe(3)
+    // levelCount 9, zero in range [-10, 10] at 50% → level 4
+    expect(calculateNeutralLevel(-10, 10, 9)).toBe(4)
   })
 })

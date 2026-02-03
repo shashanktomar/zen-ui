@@ -7,6 +7,7 @@
  */
 
 import * as v from 'valibot'
+import { HEX_COLOR_REGEX } from './color-utils'
 
 // Week start day type
 export type WeekStartDay = 'sunday' | 'monday'
@@ -37,9 +38,6 @@ export const CONFIG_DEFAULTS = {
 export function weekStartDayToNumber(day: WeekStartDay): 0 | 1 {
   return day === 'sunday' ? 0 : 1
 }
-
-// Hex color regex
-const hexColorRegex = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/
 
 // Helper: transform with fallback (returns default if validation fails)
 function withFallback<T>(schema: v.GenericSchema<unknown, T>, fallback: T) {
@@ -112,14 +110,36 @@ const ValueModeSchema = withFallback(
   CONFIG_DEFAULTS.valueMode,
 )
 
-// Schema for baseColor (hex color)
+// Schema for baseColor (hex color with fallback)
 const BaseColorSchema = v.pipe(
   v.unknown(),
   v.transform((input) => {
-    if (typeof input === 'string' && hexColorRegex.test(input)) {
+    if (typeof input === 'string' && HEX_COLOR_REGEX.test(input)) {
       return input
     }
     return CONFIG_DEFAULTS.baseColor
+  }),
+)
+
+// Schema for optional hex color (undefined if invalid - for diverging colors)
+const OptionalHexColorSchema = v.pipe(
+  v.unknown(),
+  v.transform((input): string | undefined => {
+    if (typeof input === 'string' && HEX_COLOR_REGEX.test(input)) {
+      return input
+    }
+    return undefined
+  }),
+)
+
+// Schema for neutralValue (optional finite number)
+const NeutralValueSchema = v.pipe(
+  v.unknown(),
+  v.transform((input): number | undefined => {
+    if (typeof input === 'number' && Number.isFinite(input)) {
+      return input
+    }
+    return undefined
   }),
 )
 
@@ -158,6 +178,12 @@ const HeatmapConfigSchema = v.pipe(
     valueMode: v.optional(ValueModeSchema, CONFIG_DEFAULTS.valueMode),
     baseColor: v.optional(BaseColorSchema, CONFIG_DEFAULTS.baseColor),
     backgroundColor: v.optional(v.string()),
+
+    // Diverging color scheme (both required for diverging mode)
+    negativeColor: v.optional(OptionalHexColorSchema),
+    positiveColor: v.optional(OptionalHexColorSchema),
+    neutralValue: v.optional(NeutralValueSchema),
+
     grid_options: GridOptionsSchema,
   }),
   // Cross-field validation for levelThresholds

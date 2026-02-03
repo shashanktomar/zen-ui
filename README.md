@@ -77,6 +77,9 @@ title: Activity
 | `range`           | string   | `rolling`    | `rolling` (last 365 days) or `year` (calendar years)              |
 | `years`           | number   | `1`          | Number of years to display (only for `range: year`)               |
 | `baseColor`       | string   | `#40c463`    | Base color for the heatmap (hex format)                           |
+| `negativeColor`   | string   | —            | Color for negative values (hex). Requires `positiveColor`         |
+| `positiveColor`   | string   | —            | Color for positive values (hex). Requires `negativeColor`         |
+| `neutralValue`    | number   | —            | Center point for diverging colors (default: 0 if in range)        |
 | `backgroundColor` | string   | —            | Custom card background color                                      |
 | `levelCount`      | number   | `5`          | Number of intensity levels (2-10)                                 |
 | `levelThresholds` | number[] | —            | Custom percentile thresholds (must have `levelCount - 1` values)  |
@@ -85,7 +88,7 @@ title: Activity
 | `missingMode`     | string   | `zero`       | `zero` (missing = 0) or `transparent` (missing days are distinct) |
 | `show_legend`     | boolean  | `true`       | Show the Less/More legend                                         |
 
-> **Note:** When using `valueMode: range`, `missingMode` is automatically set to `transparent` because zero has meaning within the range.
+> **Note:** When using `valueMode: range` or diverging colors, `missingMode` is automatically set to `transparent` because zero has meaning within the range.
 
 </details>
 
@@ -251,6 +254,44 @@ valueMode: range
 ```
 
 With `valueMode: range`, levels are distributed across the full min..max range. Negative values get lower levels, positive values get higher levels, and zero falls somewhere in the middle based on your data distribution. Missing days automatically appear transparent since zero has meaning in range mode.
+
+**Diverging Colors**
+
+For data with positive and negative values, use two colors that meet at a neutral point:
+
+![Heatmap Diverging](images/heatmap-diverging.png)
+
+```yaml
+type: custom:zen-ui
+card: heatmap
+entity: sensor.temperature_delta
+title: Temperature Variance
+negativeColor: '#89b4fa'
+positiveColor: '#fab387'
+```
+
+This creates a color gradient from blue (cold/negative) through neutral gray to orange (warm/positive). The legend shows actual min/max values (e.g., "-10" to "+8").
+
+**Diverging with Custom Neutral Point**
+
+By default, zero is the neutral point. For data centered around a different value (like scores around 50):
+
+![Heatmap Diverging Custom Neutral](images/heatmap-diverging-custom-neutral.png)
+
+```yaml
+type: custom:zen-ui
+card: heatmap
+entity: sensor.performance_score
+title: Performance Score
+negativeColor: '#eba0ac'
+positiveColor: '#94e2d5'
+neutralValue: 50
+levelCount: 7
+```
+
+Values below 50 appear in maroon tones, values above 50 in teal tones.
+
+> **Note:** Diverging mode requires both `negativeColor` AND `positiveColor`. The `levelCount` is automatically adjusted to be odd (≥3) to ensure a clear center point.
 
 **HA Screenshot**
 
