@@ -13,6 +13,7 @@ export interface Tooltip {
   y: number
   date: string
   count: number
+  missing?: boolean
 }
 
 export interface CardRenderContext {
@@ -22,7 +23,12 @@ export interface CardRenderContext {
   darkMode: boolean
   locale: string
   tooltip?: Tooltip
-  onCellMouseEnter: (e: MouseEvent, date: string, count: number) => void
+  onCellMouseEnter: (
+    e: MouseEvent,
+    date: string,
+    count: number,
+    missing?: boolean,
+  ) => void
   onCellMouseLeave: () => void
 }
 

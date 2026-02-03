@@ -18,7 +18,7 @@ export interface PipelineConfig {
   weekStartDay?: 0 | 1 // 0 = Sunday, 1 = Monday (default: 1)
   levelCount?: number // Number of color intensity levels 2-10 (default: 5)
   levelThresholds?: number[] // Percentages for level boundaries (must have levelCount-1 values if provided)
-  valueMode?: 'clamp_zero' // How to handle negative values (default: clamp_zero)
+  valueMode?: 'clamp_zero' | 'range' // How to handle negative values (default: clamp_zero)
   missingMode?: 'zero' | 'transparent' // How to handle missing data (default: zero)
 }
 
@@ -44,6 +44,7 @@ export interface HeatmapData {
   range: DateRange
   weeks: BoundedDay[][] // 52-53 weeks x 7 days
   maxCount: number
+  minCount?: number // Only set when valueMode: 'range'
 }
 
 // ============================================================================
@@ -227,6 +228,37 @@ export function getLevel(
 }
 
 /**
+ * Maps a count value to a level based on min..max range.
+ * Used when valueMode is 'range'.
+ */
+export function getLevelRange(
+  count: number,
+  minCount: number,
+  maxCount: number,
+  levelCount: number = 5,
+  thresholds?: number[],
+): number {
+  // Handle edge case: all same value
+  if (minCount === maxCount) return Math.floor(levelCount / 2)
+
+  // Calculate percentage within the range (0-100)
+  const range = maxCount - minCount
+  const percentage = ((count - minCount) / range) * 100
+
+  // Use custom thresholds if provided
+  if (thresholds) {
+    for (let i = 0; i < thresholds.length; i++) {
+      if (percentage <= thresholds[i]) return i
+    }
+    return levelCount - 1
+  }
+
+  // Linear distribution: evenly spread across levels
+  const level = Math.floor((percentage / 100) * levelCount)
+  return Math.min(level, levelCount - 1) // Clamp to max level
+}
+
+/**
  * Bounds data to a date range, producing a complete grid.
  *
  * - Filters out data outside the range (trims overflow)
@@ -239,6 +271,7 @@ export function boundDataToRange(
   levelCount: number = 5,
   thresholds?: number[],
   missingMode?: 'zero' | 'transparent',
+  valueMode?: 'clamp_zero' | 'range',
 ): HeatmapData {
   // Build lookup map from normalized data
   const dataMap = new Map<string, number>()
@@ -246,20 +279,40 @@ export function boundDataToRange(
     dataMap.set(date, count)
   }
 
-  const trackMissing = missingMode === 'transparent'
+  // For range mode, force missingMode to transparent (zero has meaning)
+  const effectiveMissingMode =
+    valueMode === 'range' ? 'transparent' : missingMode
+  const trackMissing = effectiveMissingMode === 'transparent'
 
-  // First pass: collect days and find maxCount
+  // First pass: collect days and find min/max counts
   const days: { date: string; count: number; hasData: boolean }[] = []
-  let maxCount = 0
+  let maxCount = valueMode === 'range' ? -Infinity : 0
+  let minCount = valueMode === 'range' ? Infinity : 0
 
   const current = new Date(range.startDate)
   while (current <= range.endDate) {
     const dateStr = formatDate(current)
     const hasData = dataMap.has(dateStr)
     const count = dataMap.get(dateStr) ?? 0 // Underflow: missing = 0
-    maxCount = Math.max(maxCount, count)
+
+    // Only consider days with data for min/max in range mode
+    if (valueMode === 'range') {
+      if (hasData) {
+        maxCount = Math.max(maxCount, count)
+        minCount = Math.min(minCount, count)
+      }
+    } else {
+      maxCount = Math.max(maxCount, count)
+    }
+
     days.push({ date: dateStr, count, hasData })
     current.setDate(current.getDate() + 1)
+  }
+
+  // Handle edge case: no data at all
+  if (valueMode === 'range' && maxCount === -Infinity) {
+    maxCount = 0
+    minCount = 0
   }
 
   // Second pass: compute levels and build weeks
@@ -267,7 +320,16 @@ export function boundDataToRange(
   let currentWeek: BoundedDay[] = []
 
   for (const { date, count, hasData } of days) {
-    const level = getLevel(count, maxCount, levelCount, thresholds)
+    let level: number
+    if (valueMode === 'range') {
+      // For range mode, missing days don't get a meaningful level
+      level = hasData
+        ? getLevelRange(count, minCount, maxCount, levelCount, thresholds)
+        : 0
+    } else {
+      level = getLevel(count, maxCount, levelCount, thresholds)
+    }
+
     const day: BoundedDay = { date, count, level }
 
     if (trackMissing) {
@@ -287,7 +349,12 @@ export function boundDataToRange(
     weeks.push(currentWeek)
   }
 
-  return { range, weeks, maxCount }
+  const result: HeatmapData = { range, weeks, maxCount }
+  if (valueMode === 'range') {
+    result.minCount = minCount
+  }
+
+  return result
 }
 
 /**
@@ -311,6 +378,7 @@ export function processHeatmapData(
 
   const thresholds = config.levelThresholds
   const missingMode = config.missingMode
+  const valueMode = config.valueMode
 
   return ranges.map((range) =>
     boundDataToRange(
@@ -319,6 +387,7 @@ export function processHeatmapData(
       levelCount,
       thresholds,
       missingMode,
+      valueMode,
     ),
   )
 }

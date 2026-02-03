@@ -314,6 +314,7 @@ export class ZenUI extends LitElement {
       levelCount: config.levelCount,
       levelThresholds: config.levelThresholds,
       missingMode: config.missingMode,
+      valueMode: config.valueMode,
     }
   }
 
@@ -328,6 +329,7 @@ export class ZenUI extends LitElement {
     e: MouseEvent,
     date: string,
     count: number,
+    missing?: boolean,
   ): void => {
     const rect = (e.target as SVGRectElement).getBoundingClientRect()
     this._tooltip = {
@@ -335,6 +337,7 @@ export class ZenUI extends LitElement {
       y: rect.top,
       date,
       count,
+      missing,
     }
   }
 
@@ -431,7 +434,11 @@ export class ZenUI extends LitElement {
               <div class="tooltip-date">
                 ${this._formatTooltipDate(this._tooltip.date)}
               </div>
-              <div class="tooltip-count">${this._tooltip.count.toFixed(2)}</div>
+              <div class="tooltip-count">
+                ${this._tooltip.missing
+                  ? t('missing', this._getLocale())
+                  : this._tooltip.count.toFixed(2)}
+              </div>
             </div>
           `
         : ''}

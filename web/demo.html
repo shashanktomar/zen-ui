@@ -172,7 +172,7 @@
     </div>
 
     <div class="demo-container">
-      <div class="demo-label">Negative Values (clamped to zero)</div>
+      <div class="demo-label">Range Mode (negative + positive values)</div>
       <zen-ui id="card-negative"></zen-ui>
       <div class="config-display" id="config-negative"></div>
     </div>
@@ -385,7 +385,8 @@
       const negativeConfig = {
         card: 'heatmap',
         entity: 'sensor.energy',
-        title: 'Energy Balance',
+        title: 'Energy Balance (range mode)',
+        valueMode: 'range',
         baseColor: '#238636',
       }
 

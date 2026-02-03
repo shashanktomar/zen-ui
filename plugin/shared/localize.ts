@@ -10,6 +10,7 @@ type TranslationStrings = {
   loading: string
   noData: string
   error: string
+  missing: string
 }
 
 const en: TranslationStrings = {
@@ -18,6 +19,7 @@ const en: TranslationStrings = {
   loading: 'Loading history...',
   noData: 'No data available',
   error: 'Failed to load statistics data',
+  missing: 'Missing',
 }
 
 type Key = keyof TranslationStrings
@@ -30,6 +32,7 @@ const translations: Record<string, Partial<TranslationStrings>> = {
     loading: 'Laden...',
     noData: 'Geen gegevens',
     error: 'Laden mislukt',
+    missing: 'Ontbreekt',
   },
   de: {
     less: 'Weniger',
@@ -37,6 +40,7 @@ const translations: Record<string, Partial<TranslationStrings>> = {
     loading: 'Laden...',
     noData: 'Keine Daten',
     error: 'Fehler beim Laden',
+    missing: 'Fehlt',
   },
   fr: {
     less: 'Moins',
@@ -44,6 +48,7 @@ const translations: Record<string, Partial<TranslationStrings>> = {
     loading: 'Chargement...',
     noData: 'Aucune donnée',
     error: 'Erreur de chargement',
+    missing: 'Manquant',
   },
   es: {
     less: 'Menos',
@@ -51,6 +56,7 @@ const translations: Record<string, Partial<TranslationStrings>> = {
     loading: 'Cargando...',
     noData: 'Sin datos',
     error: 'Error al cargar',
+    missing: 'Falta',
   },
 }
 

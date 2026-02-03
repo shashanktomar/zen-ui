@@ -1076,4 +1076,105 @@ describe('processHeatmapData', () => {
       expect(missingDay?.missing).toBeUndefined()
     })
   })
+
+  describe('valueMode: range', () => {
+    it('distributes levels across min..max including negatives', () => {
+      const config: PipelineConfig = {
+        mode: 'fixed',
+        years: 1,
+        valueMode: 'range',
+      }
+      // Data from -10 to +10, so 0 is in the middle
+      const rawData = [
+        { date: '2024-01-10', count: -10 }, // min → level 0
+        { date: '2024-01-11', count: -5 }, // 25% → level 1
+        { date: '2024-01-12', count: 0 }, // 50% → level 2
+        { date: '2024-01-13', count: 5 }, // 75% → level 3
+        { date: '2024-01-14', count: 10 }, // max → level 4
+      ]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      const allDays = result[0].weeks.flat()
+      expect(allDays.find((d) => d.date === '2024-01-10')?.level).toBe(0) // min
+      expect(allDays.find((d) => d.date === '2024-01-11')?.level).toBe(1) // 25%
+      expect(allDays.find((d) => d.date === '2024-01-12')?.level).toBe(2) // 50% (zero)
+      expect(allDays.find((d) => d.date === '2024-01-13')?.level).toBe(3) // 75%
+      expect(allDays.find((d) => d.date === '2024-01-14')?.level).toBe(4) // max
+    })
+
+    it('forces missingMode to transparent (zero has meaning in range)', () => {
+      const config: PipelineConfig = {
+        mode: 'fixed',
+        years: 1,
+        valueMode: 'range',
+        missingMode: 'zero', // should be ignored, forced to transparent
+      }
+      const rawData = [
+        { date: '2024-01-15', count: 10 },
+        { date: '2024-01-16', count: -10 },
+      ]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      const allDays = result[0].weeks.flat()
+      // Missing days should have missing: true (transparent forced)
+      const missingDay = allDays.find((d) => d.date === '2024-01-10')
+      expect(missingDay?.missing).toBe(true)
+    })
+
+    it('handles all positive values (min > 0)', () => {
+      const config: PipelineConfig = {
+        mode: 'fixed',
+        years: 1,
+        valueMode: 'range',
+      }
+      // All positive: 5 to 15
+      const rawData = [
+        { date: '2024-01-10', count: 5 }, // min → level 0
+        { date: '2024-01-11', count: 10 }, // 50% → level 2
+        { date: '2024-01-12', count: 15 }, // max → level 4
+      ]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      const allDays = result[0].weeks.flat()
+      expect(allDays.find((d) => d.date === '2024-01-10')?.level).toBe(0) // min
+      expect(allDays.find((d) => d.date === '2024-01-11')?.level).toBe(2) // 50%
+      expect(allDays.find((d) => d.date === '2024-01-12')?.level).toBe(4) // max
+    })
+
+    it('handles all negative values (max < 0)', () => {
+      const config: PipelineConfig = {
+        mode: 'fixed',
+        years: 1,
+        valueMode: 'range',
+      }
+      // All negative: -15 to -5
+      const rawData = [
+        { date: '2024-01-10', count: -15 }, // min → level 0
+        { date: '2024-01-11', count: -10 }, // 50% → level 2
+        { date: '2024-01-12', count: -5 }, // max → level 4
+      ]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      const allDays = result[0].weeks.flat()
+      expect(allDays.find((d) => d.date === '2024-01-10')?.level).toBe(0) // min
+      expect(allDays.find((d) => d.date === '2024-01-11')?.level).toBe(2) // 50%
+      expect(allDays.find((d) => d.date === '2024-01-12')?.level).toBe(4) // max
+    })
+
+    it('tracks minCount in HeatmapData', () => {
+      const config: PipelineConfig = {
+        mode: 'fixed',
+        years: 1,
+        valueMode: 'range',
+      }
+      const rawData = [
+        { date: '2024-01-10', count: -20 },
+        { date: '2024-01-11', count: 30 },
+      ]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      expect(result[0].minCount).toBe(-20)
+      expect(result[0].maxCount).toBe(30)
+    })
+  })
 })

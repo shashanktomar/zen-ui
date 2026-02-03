@@ -81,8 +81,11 @@ title: Activity
 | `levelCount`      | number   | `5`          | Number of intensity levels (2-10)                                 |
 | `levelThresholds` | number[] | —            | Custom percentile thresholds (must have `levelCount - 1` values)  |
 | `weekStartDay`    | string   | `monday`     | First day of week: `monday`, `mon`, `sunday`, or `sun`            |
+| `valueMode`       | string   | `clamp_zero` | `clamp_zero` (negatives = 0) or `range` (levels span min..max)    |
 | `missingMode`     | string   | `zero`       | `zero` (missing = 0) or `transparent` (missing days are distinct) |
 | `show_legend`     | boolean  | `true`       | Show the Less/More legend                                         |
+
+> **Note:** When using `valueMode: range`, `missingMode` is automatically set to `transparent` because zero has meaning within the range.
 
 </details>
 
@@ -234,6 +237,20 @@ missingMode: transparent
 ```
 
 With `missingMode: transparent`, days without any data appear transparent, while days with an explicit count of 0 still show the empty color. This is useful for sensors that don't report every day.
+
+**Range Mode for Positive/Negative Values**
+
+For data that includes negative values (like energy balance, temperature delta, profit/loss):
+
+```yaml
+type: custom:zen-ui
+card: heatmap
+entity: sensor.energy_balance
+title: Energy Balance
+valueMode: range
+```
+
+With `valueMode: range`, levels are distributed across the full min..max range. Negative values get lower levels, positive values get higher levels, and zero falls somewhere in the middle based on your data distribution. Missing days automatically appear transparent since zero has meaning in range mode.
 
 **HA Screenshot**
 
