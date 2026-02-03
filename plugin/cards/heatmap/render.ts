@@ -103,8 +103,10 @@ export function renderYearGraph(
           ${labels}
           ${calculateGridPositions(heatmapData.weeks.flat(), weekStart).map(
             ({ day, row, col }) => {
-              const color =
-                colorScale[day.level] ?? colorScale[colorScale.length - 1]
+              // Missing days are rendered as transparent
+              const color = day.missing
+                ? 'transparent'
+                : (colorScale[day.level] ?? colorScale[colorScale.length - 1])
               return svg`
                 <rect
                   width="${RECT_SIZE}"

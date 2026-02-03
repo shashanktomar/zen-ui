@@ -1018,4 +1018,62 @@ describe('processHeatmapData', () => {
       expect(allDays.find((d) => d.date === '2024-01-17')?.level).toBe(2) // 50%
     })
   })
+
+  describe('missingMode: transparent', () => {
+    it('default missingMode does not set missing flag', () => {
+      const config: PipelineConfig = { mode: 'fixed', years: 1 }
+      const rawData = [{ date: '2024-01-15', count: 5 }]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      const allDays = result[0].weeks.flat()
+      // With default mode, missing flag should be undefined
+      const missingDay = allDays.find((d) => d.date === '2024-01-10')
+      expect(missingDay?.missing).toBeUndefined()
+    })
+
+    it('missingMode: transparent marks days without data as missing', () => {
+      const config: PipelineConfig = {
+        mode: 'fixed',
+        years: 1,
+        missingMode: 'transparent',
+      }
+      const rawData = [
+        { date: '2024-01-15', count: 5 },
+        { date: '2024-01-16', count: 0 }, // explicit zero, NOT missing
+      ]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      const allDays = result[0].weeks.flat()
+
+      // Day with data (count > 0) - not missing
+      const dayWithData = allDays.find((d) => d.date === '2024-01-15')
+      expect(dayWithData?.missing).toBe(false)
+      expect(dayWithData?.count).toBe(5)
+
+      // Day with explicit zero - not missing
+      const dayWithZero = allDays.find((d) => d.date === '2024-01-16')
+      expect(dayWithZero?.missing).toBe(false)
+      expect(dayWithZero?.count).toBe(0)
+
+      // Day without any data - missing
+      const missingDay = allDays.find((d) => d.date === '2024-01-10')
+      expect(missingDay?.missing).toBe(true)
+      expect(missingDay?.count).toBe(0)
+      expect(missingDay?.level).toBe(0)
+    })
+
+    it('missingMode: zero (explicit) does not set missing flag', () => {
+      const config: PipelineConfig = {
+        mode: 'fixed',
+        years: 1,
+        missingMode: 'zero',
+      }
+      const rawData = [{ date: '2024-01-15', count: 5 }]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      const allDays = result[0].weeks.flat()
+      const missingDay = allDays.find((d) => d.date === '2024-01-10')
+      expect(missingDay?.missing).toBeUndefined()
+    })
+  })
 })

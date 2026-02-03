@@ -165,6 +165,18 @@
       <div class="config-display" id="config-themed"></div>
     </div>
 
+    <div class="demo-container">
+      <div class="demo-label">Missing Mode: Transparent (sparse data)</div>
+      <zen-ui id="card-missing"></zen-ui>
+      <div class="config-display" id="config-missing"></div>
+    </div>
+
+    <div class="demo-container">
+      <div class="demo-label">Negative Values (clamped to zero)</div>
+      <zen-ui id="card-negative"></zen-ui>
+      <div class="config-display" id="config-negative"></div>
+    </div>
+
     <script type="module">
       import '../plugin/zen-ui.ts'
 
@@ -172,10 +184,14 @@
       const cardMultiyear = document.getElementById('card-multiyear')
       const cardBinary = document.getElementById('card-binary')
       const cardThemed = document.getElementById('card-themed')
+      const cardMissing = document.getElementById('card-missing')
+      const cardNegative = document.getElementById('card-negative')
       const configRolling = document.getElementById('config-rolling')
       const configMultiyear = document.getElementById('config-multiyear')
       const configBinary = document.getElementById('config-binary')
       const configThemed = document.getElementById('config-themed')
+      const configMissing = document.getElementById('config-missing')
+      const configNegative = document.getElementById('config-negative')
       const themeBtn = document.getElementById('theme-toggle')
       const regenBtn = document.getElementById('regen-data')
       const localeSelect = document.getElementById('locale-select')
@@ -190,6 +206,18 @@
             },
           },
           'sensor.meditation': {
+            state: 'on',
+            attributes: {
+              data: [],
+            },
+          },
+          'sensor.sparse': {
+            state: 'on',
+            attributes: {
+              data: [],
+            },
+          },
+          'sensor.energy': {
             state: 'on',
             attributes: {
               data: [],
@@ -248,12 +276,71 @@
         return data
       }
 
+      function generateSparseData() {
+        const data = []
+        const today = new Date()
+        const start = new Date(
+          today.getFullYear() - 1,
+          today.getMonth(),
+          today.getDate(),
+        )
+        const end = new Date(today)
+
+        const itr = new Date(start)
+        while (itr <= end) {
+          const dateStr = itr.toISOString().split('T')[0]
+          // Very sparse: only ~15% of days have data
+          if (Math.random() > 0.85) {
+            const count = Math.floor(Math.random() * 10) + 1
+            data.push({ date: dateStr, count })
+          }
+          // Occasionally add explicit zeros (~5%)
+          else if (Math.random() > 0.95) {
+            data.push({ date: dateStr, count: 0 })
+          }
+          itr.setDate(itr.getDate() + 1)
+        }
+        return data
+      }
+
+      function generateEnergyData() {
+        const data = []
+        const today = new Date()
+        const start = new Date(
+          today.getFullYear() - 1,
+          today.getMonth(),
+          today.getDate(),
+        )
+        const end = new Date(today)
+
+        const itr = new Date(start)
+        while (itr <= end) {
+          const dateStr = itr.toISOString().split('T')[0]
+          // Energy balance: mix of positive, negative, and zero
+          // Positive = surplus, Negative = deficit
+          const rand = Math.random()
+          let count
+          if (rand > 0.7) {
+            count = Math.floor(Math.random() * 20) + 1 // positive
+          } else if (rand > 0.4) {
+            count = -Math.floor(Math.random() * 15) - 1 // negative
+          } else {
+            count = 0 // zero
+          }
+          data.push({ date: dateStr, count })
+          itr.setDate(itr.getDate() + 1)
+        }
+        return data
+      }
+
       function updateAllCards() {
         const hass = { ...mockHass }
         cardRolling.hass = hass
         cardMultiyear.hass = hass
         cardBinary.hass = hass
         cardThemed.hass = hass
+        cardMissing.hass = hass
+        cardNegative.hass = hass
       }
 
       // Initial configs
@@ -287,6 +374,21 @@
         backgroundColor: '#fff5f8',
       }
 
+      const missingConfig = {
+        card: 'heatmap',
+        entity: 'sensor.sparse',
+        title: 'Sparse Data (transparent missing)',
+        missingMode: 'transparent',
+        baseColor: '#0969da',
+      }
+
+      const negativeConfig = {
+        card: 'heatmap',
+        entity: 'sensor.energy',
+        title: 'Energy Balance',
+        baseColor: '#238636',
+      }
+
       // Convert config to YAML format
       function toYaml(config) {
         let yaml = 'type: custom:zen-ui\n'
@@ -301,12 +403,16 @@
       configMultiyear.textContent = toYaml(multiyearConfig)
       configBinary.textContent = toYaml(binaryConfig)
       configThemed.textContent = toYaml(themedConfig)
+      configMissing.textContent = toYaml(missingConfig)
+      configNegative.textContent = toYaml(negativeConfig)
 
       // Initialize configs
       cardRolling.setConfig(rollingConfig)
       cardMultiyear.setConfig(multiyearConfig)
       cardBinary.setConfig(binaryConfig)
       cardThemed.setConfig(themedConfig)
+      cardMissing.setConfig(missingConfig)
+      cardNegative.setConfig(negativeConfig)
 
       // Sync mockHass with selector values (browser may restore them on refresh)
       mockHass.locale.language = localeSelect.value
@@ -315,6 +421,8 @@
       mockHass.states['sensor.activity'].attributes.data = generateRandomData()
       mockHass.states['sensor.meditation'].attributes.data =
         generateBinaryData()
+      mockHass.states['sensor.sparse'].attributes.data = generateSparseData()
+      mockHass.states['sensor.energy'].attributes.data = generateEnergyData()
       updateAllCards()
 
       // Event Listeners
@@ -323,6 +431,8 @@
           generateRandomData()
         mockHass.states['sensor.meditation'].attributes.data =
           generateBinaryData()
+        mockHass.states['sensor.sparse'].attributes.data = generateSparseData()
+        mockHass.states['sensor.energy'].attributes.data = generateEnergyData()
         updateAllCards()
       })
 

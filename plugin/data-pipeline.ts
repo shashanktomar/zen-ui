@@ -19,6 +19,7 @@ export interface PipelineConfig {
   levelCount?: number // Number of color intensity levels 2-10 (default: 5)
   levelThresholds?: number[] // Percentages for level boundaries (must have levelCount-1 values if provided)
   valueMode?: 'clamp_zero' // How to handle negative values (default: clamp_zero)
+  missingMode?: 'zero' | 'transparent' // How to handle missing data (default: zero)
 }
 
 export interface ContributionData {
@@ -36,6 +37,7 @@ export interface BoundedDay {
   date: string // YYYY-MM-DD
   count: number // 0 if no data
   level: number // Color intensity level (0 to levelCount-1)
+  missing?: boolean // True if no data was provided for this date (only set when missingMode: 'transparent')
 }
 
 export interface HeatmapData {
@@ -236,6 +238,7 @@ export function boundDataToRange(
   range: DateRange,
   levelCount: number = 5,
   thresholds?: number[],
+  missingMode?: 'zero' | 'transparent',
 ): HeatmapData {
   // Build lookup map from normalized data
   const dataMap = new Map<string, number>()
@@ -243,16 +246,19 @@ export function boundDataToRange(
     dataMap.set(date, count)
   }
 
+  const trackMissing = missingMode === 'transparent'
+
   // First pass: collect days and find maxCount
-  const days: { date: string; count: number }[] = []
+  const days: { date: string; count: number; hasData: boolean }[] = []
   let maxCount = 0
 
   const current = new Date(range.startDate)
   while (current <= range.endDate) {
     const dateStr = formatDate(current)
+    const hasData = dataMap.has(dateStr)
     const count = dataMap.get(dateStr) ?? 0 // Underflow: missing = 0
     maxCount = Math.max(maxCount, count)
-    days.push({ date: dateStr, count })
+    days.push({ date: dateStr, count, hasData })
     current.setDate(current.getDate() + 1)
   }
 
@@ -260,9 +266,15 @@ export function boundDataToRange(
   const weeks: BoundedDay[][] = []
   let currentWeek: BoundedDay[] = []
 
-  for (const { date, count } of days) {
+  for (const { date, count, hasData } of days) {
     const level = getLevel(count, maxCount, levelCount, thresholds)
-    currentWeek.push({ date, count, level })
+    const day: BoundedDay = { date, count, level }
+
+    if (trackMissing) {
+      day.missing = !hasData
+    }
+
+    currentWeek.push(day)
 
     if (currentWeek.length === 7) {
       weeks.push(currentWeek)
@@ -298,8 +310,15 @@ export function processHeatmapData(
   const levelCount = Math.max(2, Math.min(10, rawLevelCount))
 
   const thresholds = config.levelThresholds
+  const missingMode = config.missingMode
 
   return ranges.map((range) =>
-    boundDataToRange(normalizedData, range, levelCount, thresholds),
+    boundDataToRange(
+      normalizedData,
+      range,
+      levelCount,
+      thresholds,
+      missingMode,
+    ),
   )
 }

@@ -68,20 +68,21 @@ title: Activity
 
 <br>
 
-| Option            | Type     | Default      | Description                                                      |
-| ----------------- | -------- | ------------ | ---------------------------------------------------------------- |
-| `entity`          | string   | **Required** | Entity ID that contains your data                                |
-| `card`            | string   | **Required** | Card type: `heatmap`                                             |
-| `title`           | string   | —            | Card title displayed at the top                                  |
-| `attribute`       | string   | `data`       | Entity attribute containing the data array                       |
-| `range`           | string   | `rolling`    | `rolling` (last 365 days) or `year` (calendar years)             |
-| `years`           | number   | `1`          | Number of years to display (only for `range: year`)              |
-| `baseColor`       | string   | `#40c463`    | Base color for the heatmap (hex format)                          |
-| `backgroundColor` | string   | —            | Custom card background color                                     |
-| `levelCount`      | number   | `5`          | Number of intensity levels (2-10)                                |
-| `levelThresholds` | number[] | —            | Custom percentile thresholds (must have `levelCount - 1` values) |
-| `weekStartDay`    | string   | `monday`     | First day of week: `monday`, `mon`, `sunday`, or `sun`           |
-| `show_legend`     | boolean  | `true`       | Show the Less/More legend                                        |
+| Option            | Type     | Default      | Description                                                       |
+| ----------------- | -------- | ------------ | ----------------------------------------------------------------- |
+| `entity`          | string   | **Required** | Entity ID that contains your data                                 |
+| `card`            | string   | **Required** | Card type: `heatmap`                                              |
+| `title`           | string   | —            | Card title displayed at the top                                   |
+| `attribute`       | string   | `data`       | Entity attribute containing the data array                        |
+| `range`           | string   | `rolling`    | `rolling` (last 365 days) or `year` (calendar years)              |
+| `years`           | number   | `1`          | Number of years to display (only for `range: year`)               |
+| `baseColor`       | string   | `#40c463`    | Base color for the heatmap (hex format)                           |
+| `backgroundColor` | string   | —            | Custom card background color                                      |
+| `levelCount`      | number   | `5`          | Number of intensity levels (2-10)                                 |
+| `levelThresholds` | number[] | —            | Custom percentile thresholds (must have `levelCount - 1` values)  |
+| `weekStartDay`    | string   | `monday`     | First day of week: `monday`, `mon`, `sunday`, or `sun`            |
+| `missingMode`     | string   | `zero`       | `zero` (missing = 0) or `transparent` (missing days are distinct) |
+| `show_legend`     | boolean  | `true`       | Show the Less/More legend                                         |
 
 </details>
 
@@ -217,6 +218,22 @@ entity: sensor.habits
 title: Habit Tracker
 weekStartDay: sunday
 ```
+
+**Sparse Data with Transparent Missing Days**
+
+When your data is sparse and you want to distinguish between "no data" and "zero value":
+
+![Heatmap Missing Mode](images/heatmap-missing-mode.png)
+
+```yaml
+type: custom:zen-ui
+card: heatmap
+entity: sensor.sporadic_tracker
+title: Sporadic Events
+missingMode: transparent
+```
+
+With `missingMode: transparent`, days without any data appear transparent, while days with an explicit count of 0 still show the empty color. This is useful for sensors that don't report every day.
 
 **HA Screenshot**
 

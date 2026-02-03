@@ -313,6 +313,7 @@ export class ZenUI extends LitElement {
       weekStartDay: weekStartDayToNumber(config.weekStartDay),
       levelCount: config.levelCount,
       levelThresholds: config.levelThresholds,
+      missingMode: config.missingMode,
     }
   }
 
