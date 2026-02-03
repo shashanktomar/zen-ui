@@ -84,6 +84,7 @@ title: Activity
 | `levelCount`      | number   | `5`          | Number of intensity levels (2-10)                                 |
 | `levelThresholds` | number[] | —            | Custom percentage boundaries for levels (see below)               |
 | `weekStartDay`    | string   | `monday`     | First day of week: `monday`, `mon`, `sunday`, or `sun`            |
+| `weekdayLabels`   | string   | `short`      | Weekday label display: `none`, `short`, `all`, or `letter`        |
 | `valueMode`       | string   | `clamp_zero` | `clamp_zero` (negatives = 0) or `range` (levels span min..max)    |
 | `missingMode`     | string   | `zero`       | `zero` (missing = 0) or `transparent` (missing days are distinct) |
 | `show_legend`     | boolean  | `true`       | Show the Less/More legend                                         |
@@ -255,6 +256,23 @@ card: heatmap
 entity: sensor.habits
 title: Habit Tracker
 weekStartDay: sunday
+```
+
+**Weekday Labels**
+
+Control how weekday labels are displayed:
+
+- `short` (default): Show 3 alternating labels (Mon/Wed/Fri or Tue/Thu/Sat)
+- `none`: Hide all weekday labels for a cleaner look
+- `all`: Show all 7 days with short names
+- `letter`: Show single-letter abbreviations for all 7 days (M, T, W...)
+
+```yaml
+type: custom:zen-ui
+card: heatmap
+entity: sensor.habits
+title: Habit Tracker
+weekdayLabels: letter # Single letters (M, T, W...)
 ```
 
 **Sparse Data with Transparent Missing Days**

@@ -139,6 +139,12 @@
         <option value="es">Spanish (Español)</option>
         <option value="ja">Japanese (unsupported)</option>
       </select>
+      <select id="weekday-labels-select">
+        <option value="short">Weekday: Short (default)</option>
+        <option value="none">Weekday: None</option>
+        <option value="all">Weekday: All</option>
+        <option value="letter">Weekday: Letter</option>
+      </select>
     </div>
 
     <div class="demo-container">
@@ -217,6 +223,9 @@
       const themeBtn = document.getElementById('theme-toggle')
       const regenBtn = document.getElementById('regen-data')
       const localeSelect = document.getElementById('locale-select')
+      const weekdayLabelsSelect = document.getElementById(
+        'weekday-labels-select',
+      )
 
       // Mock Hass Object
       let mockHass = {
@@ -554,6 +563,37 @@
       localeSelect.addEventListener('change', (e) => {
         mockHass.locale.language = e.target.value
         updateAllCards()
+      })
+
+      weekdayLabelsSelect.addEventListener('change', (e) => {
+        const value = e.target.value
+        // Update all configs
+        rollingConfig.weekdayLabels = value
+        multiyearConfig.weekdayLabels = value
+        binaryConfig.weekdayLabels = value
+        themedConfig.weekdayLabels = value
+        missingConfig.weekdayLabels = value
+        negativeConfig.weekdayLabels = value
+        divergingConfig.weekdayLabels = value
+        divergingCustomConfig.weekdayLabels = value
+        // Re-set all cards
+        cardRolling.setConfig({ ...rollingConfig })
+        cardMultiyear.setConfig({ ...multiyearConfig })
+        cardBinary.setConfig({ ...binaryConfig })
+        cardThemed.setConfig({ ...themedConfig })
+        cardMissing.setConfig({ ...missingConfig })
+        cardNegative.setConfig({ ...negativeConfig })
+        cardDiverging.setConfig({ ...divergingConfig })
+        cardDivergingCustom.setConfig({ ...divergingCustomConfig })
+        // Update displayed configs
+        configRolling.textContent = toYaml(rollingConfig)
+        configMultiyear.textContent = toYaml(multiyearConfig)
+        configBinary.textContent = toYaml(binaryConfig)
+        configThemed.textContent = toYaml(themedConfig)
+        configMissing.textContent = toYaml(missingConfig)
+        configNegative.textContent = toYaml(negativeConfig)
+        configDiverging.textContent = toYaml(divergingConfig)
+        configDivergingCustom.textContent = toYaml(divergingCustomConfig)
       })
     </script>
   </body>

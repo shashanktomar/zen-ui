@@ -7,6 +7,7 @@
 import { html, svg, type TemplateResult } from 'lit'
 import type { HeatmapData } from '../../data-pipeline'
 import type { CardRenderContext } from '../types'
+import type { WeekdayLabelsMode } from '../../config'
 import { calculateGridPositions } from './grid'
 import { t } from '../../shared/localize'
 import { parseYmdDate } from '../../shared/date'
@@ -16,6 +17,62 @@ const GAP = 3
 const STEP = RECT_SIZE + GAP
 const X_START = 30
 const Y_START = 20
+
+export interface DayLabel {
+  row: number
+  label: string
+}
+
+/**
+ * Gets the localized day label for a given day index.
+ * dayIndex: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+ */
+export function getDayLabel(
+  dayIndex: number,
+  locale: string,
+  mode: WeekdayLabelsMode,
+): string {
+  // Jan 2, 2000 = Sunday, so dayIndex 0=Sun, 1=Mon, etc.
+  const d = new Date(Date.UTC(2000, 0, 2 + dayIndex))
+  const weekdayFormat = mode === 'letter' ? 'narrow' : 'short'
+  return d.toLocaleString(locale, {
+    weekday: weekdayFormat,
+    timeZone: 'UTC',
+  })
+}
+
+/**
+ * Generates day labels based on the weekday labels mode and week start day.
+ * weekStart: 0=Sunday, 1=Monday
+ */
+export function generateDayLabels(
+  mode: WeekdayLabelsMode,
+  weekStart: 0 | 1,
+  locale: string,
+): DayLabel[] {
+  if (mode === 'none') return []
+
+  if (mode === 'all' || mode === 'letter') {
+    // Show all 7 days
+    return [0, 1, 2, 3, 4, 5, 6].map((row) => ({
+      row,
+      label: getDayLabel((row + weekStart) % 7, locale, mode),
+    }))
+  }
+
+  // Default 'short' - alternating labels (every other day starting from row 1)
+  return weekStart === 0
+    ? [
+        { row: 1, label: getDayLabel(1, locale, mode) }, // Mon
+        { row: 3, label: getDayLabel(3, locale, mode) }, // Wed
+        { row: 5, label: getDayLabel(5, locale, mode) }, // Fri
+      ]
+    : [
+        { row: 1, label: getDayLabel(2, locale, mode) }, // Tue
+        { row: 3, label: getDayLabel(4, locale, mode) }, // Thu
+        { row: 5, label: getDayLabel(6, locale, mode) }, // Sat
+      ]
+}
 
 export function renderYearGraph(
   heatmapData: HeatmapData,
@@ -70,28 +127,11 @@ export function renderYearGraph(
   const width = heatmapData.weeks.length * STEP - GAP
   const height = 7 * STEP - GAP
 
-  // Day labels based on week start day (using UTC to avoid DST issues)
-  const getDayLabel = (dayIndex: number): string => {
-    // Jan 2, 2000 = Sunday, so dayIndex 0=Sun, 1=Mon, etc.
-    const d = new Date(Date.UTC(2000, 0, 2 + dayIndex))
-    return d.toLocaleString(context.locale, {
-      weekday: 'short',
-      timeZone: 'UTC',
-    })
-  }
-
-  const dayLabels =
-    weekStart === 0
-      ? [
-          { row: 1, label: getDayLabel(1) }, // Mon
-          { row: 3, label: getDayLabel(3) }, // Wed
-          { row: 5, label: getDayLabel(5) }, // Fri
-        ]
-      : [
-          { row: 1, label: getDayLabel(2) }, // Tue
-          { row: 3, label: getDayLabel(4) }, // Thu
-          { row: 5, label: getDayLabel(6) }, // Sat
-        ]
+  const dayLabels = generateDayLabels(
+    context.config.weekdayLabels,
+    weekStart,
+    context.locale,
+  )
 
   const yearLabel = heatmapData.range.label || ''
 

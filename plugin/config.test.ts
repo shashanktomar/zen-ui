@@ -55,6 +55,7 @@ describe('validateConfig', () => {
       expect(config.range).toBe(CONFIG_DEFAULTS.range)
       expect(config.years).toBe(CONFIG_DEFAULTS.years)
       expect(config.weekStartDay).toBe(CONFIG_DEFAULTS.weekStartDay)
+      expect(config.weekdayLabels).toBe(CONFIG_DEFAULTS.weekdayLabels)
       expect(config.levelCount).toBe(CONFIG_DEFAULTS.levelCount)
       expect(config.baseColor).toBe(CONFIG_DEFAULTS.baseColor)
       expect(config.show_legend).toBe(CONFIG_DEFAULTS.show_legend)
@@ -216,6 +217,39 @@ describe('validateConfig', () => {
       expect(
         validateConfig(validConfig({ baseColor: '#12345' })).baseColor,
       ).toBe('#40c463')
+    })
+  })
+
+  describe('weekdayLabels validation', () => {
+    it('accepts valid weekdayLabels values', () => {
+      expect(
+        validateConfig(validConfig({ weekdayLabels: 'none' })).weekdayLabels,
+      ).toBe('none')
+      expect(
+        validateConfig(validConfig({ weekdayLabels: 'short' })).weekdayLabels,
+      ).toBe('short')
+      expect(
+        validateConfig(validConfig({ weekdayLabels: 'all' })).weekdayLabels,
+      ).toBe('all')
+      expect(
+        validateConfig(validConfig({ weekdayLabels: 'letter' })).weekdayLabels,
+      ).toBe('letter')
+    })
+
+    it('defaults to short', () => {
+      expect(validateConfig(validConfig()).weekdayLabels).toBe('short')
+    })
+
+    it('falls back to default for invalid weekdayLabels', () => {
+      expect(
+        validateConfig(validConfig({ weekdayLabels: 'invalid' })).weekdayLabels,
+      ).toBe('short')
+      expect(
+        validateConfig(validConfig({ weekdayLabels: 123 })).weekdayLabels,
+      ).toBe('short')
+      expect(
+        validateConfig(validConfig({ weekdayLabels: '' })).weekdayLabels,
+      ).toBe('short')
     })
   })
 

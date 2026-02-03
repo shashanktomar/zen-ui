@@ -12,6 +12,9 @@ import { HEX_COLOR_REGEX } from './color-utils'
 // Week start day type
 export type WeekStartDay = 'sunday' | 'monday'
 
+// Weekday labels mode type
+export type WeekdayLabelsMode = 'none' | 'short' | 'all' | 'letter'
+
 // Card type - extend as new types are added
 export type CardType = 'heatmap'
 
@@ -26,6 +29,7 @@ export const CONFIG_DEFAULTS = {
   range: 'rolling' as const,
   years: 1,
   weekStartDay: 'monday' as WeekStartDay,
+  weekdayLabels: 'short' as WeekdayLabelsMode,
   levelCount: 5,
   baseColor: '#40c463',
   show_legend: true,
@@ -110,6 +114,12 @@ const ValueModeSchema = withFallback(
   CONFIG_DEFAULTS.valueMode,
 )
 
+// Schema for weekdayLabels
+const WeekdayLabelsSchema = withFallback(
+  v.picklist(['none', 'short', 'all', 'letter']),
+  CONFIG_DEFAULTS.weekdayLabels,
+)
+
 // Schema for baseColor (hex color with fallback)
 const BaseColorSchema = v.pipe(
   v.unknown(),
@@ -172,6 +182,10 @@ const HeatmapConfigSchema = v.pipe(
     years: v.optional(YearsSchema, CONFIG_DEFAULTS.years),
     end_date: v.optional(v.string()),
     weekStartDay: v.optional(WeekStartDaySchema, CONFIG_DEFAULTS.weekStartDay),
+    weekdayLabels: v.optional(
+      WeekdayLabelsSchema,
+      CONFIG_DEFAULTS.weekdayLabels,
+    ),
     levelCount: v.optional(LevelCountSchema, CONFIG_DEFAULTS.levelCount),
     levelThresholds: v.optional(v.array(v.number())),
     missingMode: v.optional(MissingModeSchema, CONFIG_DEFAULTS.missingMode),
