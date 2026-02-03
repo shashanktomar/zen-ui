@@ -3,6 +3,7 @@ import {
   normalizeData,
   calculateDateRanges,
   getLevel,
+  getLevelRange,
   calculateEvenThresholds,
   boundDataToRange,
   processHeatmapData,
@@ -273,33 +274,24 @@ describe('calculateEvenThresholds', () => {
     expected: number[]
   }> = [
     {
-      name: 'levelCount=2 returns empty array (only 0 and 1 levels)',
+      name: 'levelCount=2 returns [50] (1 threshold dividing into 2 levels)',
       levelCount: 2,
-      expected: [],
-    },
-    {
-      name: 'levelCount=3 returns [50] (2 non-zero levels, 1 threshold)',
-      levelCount: 3,
       expected: [50],
     },
     {
-      name: 'levelCount=5 returns [25, 50, 75] (4 non-zero levels, 3 thresholds)',
-      levelCount: 5,
-      expected: [25, 50, 75],
+      name: 'levelCount=3 returns [33.33, 66.66] (2 thresholds dividing into 3 levels)',
+      levelCount: 3,
+      expected: [100 / 3, 200 / 3],
     },
     {
-      name: 'levelCount=10 returns 8 evenly distributed thresholds',
+      name: 'levelCount=5 returns [20, 40, 60, 80] (4 thresholds dividing into 5 levels)',
+      levelCount: 5,
+      expected: [20, 40, 60, 80],
+    },
+    {
+      name: 'levelCount=10 returns 9 evenly distributed thresholds',
       levelCount: 10,
-      expected: [
-        100 / 9, // ~11.11
-        200 / 9, // ~22.22
-        300 / 9, // ~33.33
-        400 / 9, // ~44.44
-        500 / 9, // ~55.55
-        600 / 9, // ~66.66
-        700 / 9, // ~77.77
-        800 / 9, // ~88.88
-      ],
+      expected: [10, 20, 30, 40, 50, 60, 70, 80, 90],
     },
   ]
 
@@ -313,7 +305,7 @@ describe('calculateEvenThresholds', () => {
 })
 
 describe('getLevel', () => {
-  describe('with default levelCount=5', () => {
+  describe('with default levelCount=5 (thresholds [20, 40, 60, 80])', () => {
     const testCases: Array<{
       name: string
       count: number
@@ -321,7 +313,7 @@ describe('getLevel', () => {
       thresholds?: number[]
       expected: number
     }> = [
-      // Zero count always returns 0
+      // Zero count returns level 0 (0% ≤ 20%)
       { name: 'count=0 returns level 0', count: 0, maxCount: 10, expected: 0 },
       {
         name: 'count=0, maxCount=0 returns level 0',
@@ -330,123 +322,161 @@ describe('getLevel', () => {
         expected: 0,
       },
 
-      // Edge case: non-zero count with maxCount=0
+      // Edge case: non-zero count with maxCount=0 returns 0 (avoid division issues)
       {
-        name: 'count>0, maxCount=0 returns level 1',
+        name: 'count>0, maxCount=0 returns level 0',
         count: 5,
         maxCount: 0,
-        expected: 1,
+        expected: 0,
       },
 
-      // Default thresholds [25, 50, 75] with maxCount=100
-      { name: '1% → level 1', count: 1, maxCount: 100, expected: 1 },
+      // Default thresholds [20, 40, 60, 80] with maxCount=100
+      { name: '1% → level 0', count: 1, maxCount: 100, expected: 0 },
       {
-        name: '25% → level 1 (boundary)',
-        count: 25,
+        name: '20% → level 0 (boundary)',
+        count: 20,
         maxCount: 100,
-        expected: 1,
+        expected: 0,
       },
-      { name: '26% → level 2', count: 26, maxCount: 100, expected: 2 },
+      { name: '21% → level 1', count: 21, maxCount: 100, expected: 1 },
       {
-        name: '50% → level 2 (boundary)',
-        count: 50,
-        maxCount: 100,
-        expected: 2,
-      },
-      { name: '51% → level 3', count: 51, maxCount: 100, expected: 3 },
-      {
-        name: '75% → level 3 (boundary)',
-        count: 75,
-        maxCount: 100,
-        expected: 3,
-      },
-      { name: '76% → level 4', count: 76, maxCount: 100, expected: 4 },
-      { name: '100% → level 4', count: 100, maxCount: 100, expected: 4 },
-
-      // Default thresholds with maxCount=8 (from plan example)
-      {
-        name: 'count=1/8 (12.5%) → level 1',
-        count: 1,
-        maxCount: 8,
-        expected: 1,
-      },
-      { name: 'count=2/8 (25%) → level 1', count: 2, maxCount: 8, expected: 1 },
-      {
-        name: 'count=3/8 (37.5%) → level 2',
-        count: 3,
-        maxCount: 8,
-        expected: 2,
-      },
-      {
-        name: 'count=5/8 (62.5%) → level 3',
-        count: 5,
-        maxCount: 8,
-        expected: 3,
-      },
-      {
-        name: 'count=8/8 (100%) → level 4',
-        count: 8,
-        maxCount: 8,
-        expected: 4,
-      },
-
-      // Custom thresholds [60, 80, 90] - emphasize high values
-      {
-        name: 'custom [60,80,90]: 50% → level 1',
-        count: 50,
-        maxCount: 100,
-        thresholds: [60, 80, 90],
-        expected: 1,
-      },
-      {
-        name: 'custom [60,80,90]: 70% → level 2',
-        count: 70,
-        maxCount: 100,
-        thresholds: [60, 80, 90],
-        expected: 2,
-      },
-      {
-        name: 'custom [60,80,90]: 85% → level 3',
-        count: 85,
-        maxCount: 100,
-        thresholds: [60, 80, 90],
-        expected: 3,
-      },
-      {
-        name: 'custom [60,80,90]: 95% → level 4',
-        count: 95,
-        maxCount: 100,
-        thresholds: [60, 80, 90],
-        expected: 4,
-      },
-
-      // Custom thresholds [10, 25, 50] - emphasize any activity
-      {
-        name: 'custom [10,25,50]: 5% → level 1',
-        count: 5,
-        maxCount: 100,
-        thresholds: [10, 25, 50],
-        expected: 1,
-      },
-      {
-        name: 'custom [10,25,50]: 15% → level 2',
-        count: 15,
-        maxCount: 100,
-        thresholds: [10, 25, 50],
-        expected: 2,
-      },
-      {
-        name: 'custom [10,25,50]: 40% → level 3',
+        name: '40% → level 1 (boundary)',
         count: 40,
         maxCount: 100,
-        thresholds: [10, 25, 50],
+        expected: 1,
+      },
+      { name: '41% → level 2', count: 41, maxCount: 100, expected: 2 },
+      {
+        name: '60% → level 2 (boundary)',
+        count: 60,
+        maxCount: 100,
+        expected: 2,
+      },
+      { name: '61% → level 3', count: 61, maxCount: 100, expected: 3 },
+      {
+        name: '80% → level 3 (boundary)',
+        count: 80,
+        maxCount: 100,
+        expected: 3,
+      },
+      { name: '81% → level 4', count: 81, maxCount: 100, expected: 4 },
+      { name: '100% → level 4', count: 100, maxCount: 100, expected: 4 },
+
+      // Default thresholds with maxCount=10 for clear percentages
+      {
+        name: 'count=1/10 (10%) → level 0',
+        count: 1,
+        maxCount: 10,
+        expected: 0,
+      },
+      {
+        name: 'count=2/10 (20%) → level 0',
+        count: 2,
+        maxCount: 10,
+        expected: 0,
+      },
+      {
+        name: 'count=3/10 (30%) → level 1',
+        count: 3,
+        maxCount: 10,
+        expected: 1,
+      },
+      {
+        name: 'count=5/10 (50%) → level 2',
+        count: 5,
+        maxCount: 10,
+        expected: 2,
+      },
+      {
+        name: 'count=7/10 (70%) → level 3',
+        count: 7,
+        maxCount: 10,
         expected: 3,
       },
       {
-        name: 'custom [10,25,50]: 60% → level 4',
+        name: 'count=9/10 (90%) → level 4',
+        count: 9,
+        maxCount: 10,
+        expected: 4,
+      },
+      {
+        name: 'count=10/10 (100%) → level 4',
+        count: 10,
+        maxCount: 10,
+        expected: 4,
+      },
+
+      // Custom thresholds [60, 80, 90, 95] - emphasize high values
+      {
+        name: 'custom [60,80,90,95]: 50% → level 0',
+        count: 50,
+        maxCount: 100,
+        thresholds: [60, 80, 90, 95],
+        expected: 0,
+      },
+      {
+        name: 'custom [60,80,90,95]: 70% → level 1',
+        count: 70,
+        maxCount: 100,
+        thresholds: [60, 80, 90, 95],
+        expected: 1,
+      },
+      {
+        name: 'custom [60,80,90,95]: 85% → level 2',
+        count: 85,
+        maxCount: 100,
+        thresholds: [60, 80, 90, 95],
+        expected: 2,
+      },
+      {
+        name: 'custom [60,80,90,95]: 92% → level 3',
+        count: 92,
+        maxCount: 100,
+        thresholds: [60, 80, 90, 95],
+        expected: 3,
+      },
+      {
+        name: 'custom [60,80,90,95]: 98% → level 4',
+        count: 98,
+        maxCount: 100,
+        thresholds: [60, 80, 90, 95],
+        expected: 4,
+      },
+
+      // Custom thresholds [5, 15, 30, 50] - emphasize any activity
+      {
+        name: 'custom [5,15,30,50]: 3% → level 0',
+        count: 3,
+        maxCount: 100,
+        thresholds: [5, 15, 30, 50],
+        expected: 0,
+      },
+      {
+        name: 'custom [5,15,30,50]: 10% → level 1',
+        count: 10,
+        maxCount: 100,
+        thresholds: [5, 15, 30, 50],
+        expected: 1,
+      },
+      {
+        name: 'custom [5,15,30,50]: 25% → level 2',
+        count: 25,
+        maxCount: 100,
+        thresholds: [5, 15, 30, 50],
+        expected: 2,
+      },
+      {
+        name: 'custom [5,15,30,50]: 40% → level 3',
+        count: 40,
+        maxCount: 100,
+        thresholds: [5, 15, 30, 50],
+        expected: 3,
+      },
+      {
+        name: 'custom [5,15,30,50]: 60% → level 4',
         count: 60,
         maxCount: 100,
-        thresholds: [10, 25, 50],
+        thresholds: [5, 15, 30, 50],
         expected: 4,
       },
     ]
@@ -459,73 +489,76 @@ describe('getLevel', () => {
     })
   })
 
-  describe('with levelCount=2 (binary: empty/active)', () => {
-    it('count=0 returns level 0', () => {
+  describe('with levelCount=2 (thresholds [50])', () => {
+    it('0-50% returns level 0', () => {
       expect(getLevel(0, 10, 2)).toBe(0)
+      expect(getLevel(5, 10, 2)).toBe(0) // 50%
     })
 
-    it('count>0 returns level 1', () => {
-      expect(getLevel(1, 10, 2)).toBe(1)
-      expect(getLevel(5, 10, 2)).toBe(1)
-      expect(getLevel(10, 10, 2)).toBe(1)
+    it('51-100% returns level 1', () => {
+      expect(getLevel(6, 10, 2)).toBe(1) // 60%
+      expect(getLevel(10, 10, 2)).toBe(1) // 100%
     })
   })
 
-  describe('with levelCount=3', () => {
-    // Thresholds: [50] - two non-zero levels
-    it('count=0 returns level 0', () => {
+  describe('with levelCount=3 (thresholds [33.33, 66.66])', () => {
+    it('0-33% returns level 0', () => {
       expect(getLevel(0, 100, 3)).toBe(0)
+      expect(getLevel(33, 100, 3)).toBe(0)
     })
 
-    it('1-50% returns level 1', () => {
-      expect(getLevel(1, 100, 3)).toBe(1)
-      expect(getLevel(50, 100, 3)).toBe(1)
+    it('34-66% returns level 1', () => {
+      expect(getLevel(34, 100, 3)).toBe(1)
+      expect(getLevel(66, 100, 3)).toBe(1)
     })
 
-    it('51-100% returns level 2', () => {
-      expect(getLevel(51, 100, 3)).toBe(2)
+    it('67-100% returns level 2', () => {
+      expect(getLevel(67, 100, 3)).toBe(2)
       expect(getLevel(100, 100, 3)).toBe(2)
     })
   })
 
-  describe('with levelCount=10', () => {
+  describe('with levelCount=10 (thresholds [10, 20, 30, 40, 50, 60, 70, 80, 90])', () => {
     it('count=0 returns level 0', () => {
       expect(getLevel(0, 100, 10)).toBe(0)
     })
 
-    it('distributes levels 1-9 across percentages', () => {
-      // With 9 non-zero levels and 8 thresholds at ~11.1, 22.2, 33.3, etc.
-      expect(getLevel(10, 100, 10)).toBe(1) // ~10% ≤ 11.1%
-      expect(getLevel(20, 100, 10)).toBe(2) // ~20% ≤ 22.2%
-      expect(getLevel(30, 100, 10)).toBe(3) // ~30% ≤ 33.3%
-      expect(getLevel(40, 100, 10)).toBe(4) // ~40% ≤ 44.4%
-      expect(getLevel(50, 100, 10)).toBe(5) // ~50% ≤ 55.5%
-      expect(getLevel(60, 100, 10)).toBe(6) // ~60% ≤ 66.6%
-      expect(getLevel(70, 100, 10)).toBe(7) // ~70% ≤ 77.7%
-      expect(getLevel(80, 100, 10)).toBe(8) // ~80% ≤ 88.8%
-      expect(getLevel(90, 100, 10)).toBe(9) // ~90% > 88.8%
+    it('distributes levels 0-9 across percentages', () => {
+      // With thresholds at 10, 20, 30, 40, 50, 60, 70, 80, 90
+      expect(getLevel(5, 100, 10)).toBe(0) // 5% ≤ 10%
+      expect(getLevel(10, 100, 10)).toBe(0) // 10% ≤ 10%
+      expect(getLevel(15, 100, 10)).toBe(1) // 15% ≤ 20%
+      expect(getLevel(25, 100, 10)).toBe(2) // 25% ≤ 30%
+      expect(getLevel(35, 100, 10)).toBe(3) // 35% ≤ 40%
+      expect(getLevel(45, 100, 10)).toBe(4) // 45% ≤ 50%
+      expect(getLevel(55, 100, 10)).toBe(5) // 55% ≤ 60%
+      expect(getLevel(65, 100, 10)).toBe(6) // 65% ≤ 70%
+      expect(getLevel(75, 100, 10)).toBe(7) // 75% ≤ 80%
+      expect(getLevel(85, 100, 10)).toBe(8) // 85% ≤ 90%
+      expect(getLevel(95, 100, 10)).toBe(9) // 95% > 90%
       expect(getLevel(100, 100, 10)).toBe(9) // 100% → highest level
     })
   })
 
   describe('with custom thresholds for various level counts', () => {
-    it('levelCount=3 with custom thresholds [30]', () => {
-      expect(getLevel(0, 100, 3, [30])).toBe(0)
-      expect(getLevel(20, 100, 3, [30])).toBe(1)
-      expect(getLevel(30, 100, 3, [30])).toBe(1)
-      expect(getLevel(50, 100, 3, [30])).toBe(2)
+    it('levelCount=3 with custom thresholds [30, 70]', () => {
+      expect(getLevel(0, 100, 3, [30, 70])).toBe(0)
+      expect(getLevel(20, 100, 3, [30, 70])).toBe(0)
+      expect(getLevel(30, 100, 3, [30, 70])).toBe(0)
+      expect(getLevel(50, 100, 3, [30, 70])).toBe(1)
+      expect(getLevel(80, 100, 3, [30, 70])).toBe(2)
     })
 
     it('levelCount=10 with custom thresholds', () => {
-      const customThresholds = [10, 20, 30, 40, 50, 60, 70, 80]
-      expect(getLevel(5, 100, 10, customThresholds)).toBe(1)
-      expect(getLevel(15, 100, 10, customThresholds)).toBe(2)
-      expect(getLevel(85, 100, 10, customThresholds)).toBe(9)
+      const customThresholds = [5, 15, 25, 35, 45, 55, 65, 75, 85]
+      expect(getLevel(3, 100, 10, customThresholds)).toBe(0) // 3% ≤ 5%
+      expect(getLevel(10, 100, 10, customThresholds)).toBe(1) // 10% ≤ 15%
+      expect(getLevel(90, 100, 10, customThresholds)).toBe(9) // 90% > 85%
     })
   })
 
   describe('negative values (clamp_zero behavior)', () => {
-    it('negative count returns level 0 (treated as no activity)', () => {
+    it('negative count returns level 0 (clamped to 0%)', () => {
       expect(getLevel(-5, 100)).toBe(0)
     })
 
@@ -537,6 +570,52 @@ describe('getLevel', () => {
 
     it('negative count with maxCount=0 returns level 0', () => {
       expect(getLevel(-5, 0)).toBe(0)
+    })
+  })
+})
+
+describe('getLevelRange', () => {
+  describe('with default levelCount=5 (thresholds [20, 40, 60, 80])', () => {
+    it('distributes levels across min..max range', () => {
+      // Range from -10 to 10, so 0 is at 50%
+      expect(getLevelRange(-10, -10, 10)).toBe(0) // 0% ≤ 20%
+      expect(getLevelRange(-5, -10, 10)).toBe(1) // 25% ≤ 40%
+      expect(getLevelRange(0, -10, 10)).toBe(2) // 50% ≤ 60%
+      expect(getLevelRange(5, -10, 10)).toBe(3) // 75% ≤ 80%
+      expect(getLevelRange(10, -10, 10)).toBe(4) // 100% > 80%
+    })
+
+    it('handles all same values (edge case)', () => {
+      expect(getLevelRange(5, 5, 5)).toBe(2) // middle level
+    })
+  })
+
+  describe('with custom thresholds', () => {
+    it('uses custom thresholds correctly', () => {
+      const thresholds = [10, 30, 60, 90]
+      // Range from 0 to 100
+      expect(getLevelRange(5, 0, 100, 5, thresholds)).toBe(0) // 5% ≤ 10%
+      expect(getLevelRange(20, 0, 100, 5, thresholds)).toBe(1) // 20% ≤ 30%
+      expect(getLevelRange(50, 0, 100, 5, thresholds)).toBe(2) // 50% ≤ 60%
+      expect(getLevelRange(80, 0, 100, 5, thresholds)).toBe(3) // 80% ≤ 90%
+      expect(getLevelRange(95, 0, 100, 5, thresholds)).toBe(4) // 95% > 90%
+    })
+  })
+
+  describe('unified model verification', () => {
+    it('getLevel and getLevelRange produce same results for equivalent inputs', () => {
+      // When min=0, getLevelRange should behave identically to getLevel
+      const thresholds = [20, 40, 60, 80]
+      const testValues = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+
+      for (const val of testValues) {
+        const levelFromGetLevel = getLevel(val, 100, 5, thresholds)
+        const levelFromGetLevelRange = getLevelRange(val, 0, 100, 5, thresholds)
+        expect(levelFromGetLevelRange).toBe(
+          levelFromGetLevel,
+          `value ${val}: getLevel=${levelFromGetLevel}, getLevelRange=${levelFromGetLevelRange}`,
+        )
+      }
     })
   })
 })
@@ -592,8 +671,8 @@ describe('boundDataToRange', () => {
       expectDayCount: 7,
       expectSampleDays: [
         { date: '2024-01-01', count: 0, level: 0 },
-        { date: '2024-01-03', count: 5, level: 2 }, // 50% of max
-        { date: '2024-01-05', count: 10, level: 4 }, // 100% of max
+        { date: '2024-01-03', count: 5, level: 2 }, // 50% → level 2 (40-60%)
+        { date: '2024-01-05', count: 10, level: 4 }, // 100% → level 4 (>80%)
         { date: '2024-01-07', count: 0, level: 0 },
       ],
     },
@@ -611,7 +690,7 @@ describe('boundDataToRange', () => {
       expectWeekCount: 1,
       expectDayCount: 7,
       expectSampleDays: [
-        { date: '2024-01-03', count: 5, level: 4 }, // 100% of in-range max
+        { date: '2024-01-03', count: 5, level: 4 }, // 100% → level 4 (>80%)
       ],
     },
 
@@ -625,7 +704,7 @@ describe('boundDataToRange', () => {
       expectDayCount: 31,
       expectSampleDays: [
         { date: '2024-01-01', count: 0, level: 0 },
-        { date: '2024-01-15', count: 8, level: 4 },
+        { date: '2024-01-15', count: 8, level: 4 }, // 100% → level 4
         { date: '2024-01-31', count: 0, level: 0 },
       ],
     },
@@ -650,7 +729,7 @@ describe('boundDataToRange', () => {
       expectDayCount: 366,
     },
 
-    // Custom thresholds with default levelCount=5
+    // Custom thresholds with default levelCount=5 (needs 4 thresholds)
     {
       name: 'custom thresholds affect levels',
       data: [
@@ -660,25 +739,26 @@ describe('boundDataToRange', () => {
         { date: '2024-01-05', count: 100 },
       ],
       range: range('2024-01-01', '2024-01-07'),
-      thresholds: [10, 50, 80],
+      thresholds: [10, 50, 80, 95], // 4 thresholds for 5 levels
       expectMaxCount: 100,
       expectWeekCount: 1,
       expectDayCount: 7,
       expectSampleDays: [
-        { date: '2024-01-02', count: 10, level: 1 }, // 10% = boundary of t1
-        { date: '2024-01-03', count: 50, level: 2 }, // 50% = boundary of t2
-        { date: '2024-01-04', count: 80, level: 3 }, // 80% = boundary of t3
-        { date: '2024-01-05', count: 100, level: 4 }, // 100% > t3
+        { date: '2024-01-02', count: 10, level: 0 }, // 10% ≤ 10% → level 0
+        { date: '2024-01-03', count: 50, level: 1 }, // 50% ≤ 50% → level 1
+        { date: '2024-01-04', count: 80, level: 2 }, // 80% ≤ 80% → level 2
+        { date: '2024-01-05', count: 100, level: 4 }, // 100% > 95% → level 4
       ],
     },
 
-    // levelCount=2 (binary)
+    // levelCount=2 (threshold at 50%)
     {
-      name: 'levelCount=2 produces binary levels',
+      name: 'levelCount=2 produces binary levels at 50% threshold',
       data: [
-        { date: '2024-01-02', count: 1 },
-        { date: '2024-01-03', count: 10 },
-        { date: '2024-01-04', count: 100 },
+        { date: '2024-01-02', count: 40 },
+        { date: '2024-01-03', count: 50 },
+        { date: '2024-01-04', count: 60 },
+        { date: '2024-01-05', count: 100 },
       ],
       range: range('2024-01-01', '2024-01-07'),
       levelCount: 2,
@@ -686,14 +766,15 @@ describe('boundDataToRange', () => {
       expectWeekCount: 1,
       expectDayCount: 7,
       expectSampleDays: [
-        { date: '2024-01-01', count: 0, level: 0 },
-        { date: '2024-01-02', count: 1, level: 1 },
-        { date: '2024-01-03', count: 10, level: 1 },
-        { date: '2024-01-04', count: 100, level: 1 },
+        { date: '2024-01-01', count: 0, level: 0 }, // 0% ≤ 50%
+        { date: '2024-01-02', count: 40, level: 0 }, // 40% ≤ 50%
+        { date: '2024-01-03', count: 50, level: 0 }, // 50% ≤ 50%
+        { date: '2024-01-04', count: 60, level: 1 }, // 60% > 50%
+        { date: '2024-01-05', count: 100, level: 1 }, // 100% > 50%
       ],
     },
 
-    // levelCount=10 with auto thresholds
+    // levelCount=10 with auto thresholds [10, 20, 30, 40, 50, 60, 70, 80, 90]
     {
       name: 'levelCount=10 distributes across 10 levels',
       data: [
@@ -709,10 +790,10 @@ describe('boundDataToRange', () => {
       expectDayCount: 7,
       expectSampleDays: [
         { date: '2024-01-01', count: 0, level: 0 },
-        { date: '2024-01-02', count: 10, level: 1 }, // 10% ≤ 11.1%
-        { date: '2024-01-03', count: 50, level: 5 }, // 50% ≤ 55.5%
-        { date: '2024-01-04', count: 90, level: 9 }, // 90% > 88.8%
-        { date: '2024-01-05', count: 100, level: 9 }, // 100% → highest
+        { date: '2024-01-02', count: 10, level: 0 }, // 10% ≤ 10%
+        { date: '2024-01-03', count: 50, level: 4 }, // 50% ≤ 50%
+        { date: '2024-01-04', count: 90, level: 8 }, // 90% ≤ 90%
+        { date: '2024-01-05', count: 100, level: 9 }, // 100% > 90% → highest
       ],
     },
   ]
@@ -859,7 +940,7 @@ describe('processHeatmapData', () => {
     const config: PipelineConfig = {
       mode: 'fixed',
       years: 1,
-      levelThresholds: [10, 20, 30], // Very low thresholds
+      levelThresholds: [10, 20, 30, 50], // 4 thresholds for 5 levels
     }
     const rawData = [
       { date: '2024-01-15', count: 100 }, // max
@@ -870,19 +951,22 @@ describe('processHeatmapData', () => {
     const allDays = result[0].weeks.flat()
     const day16 = allDays.find((d) => d.date === '2024-01-16')
 
-    // With thresholds [10, 20, 30], 25% should be level 3 (> 20%, <= 30%)
-    expect(day16?.level).toBe(3)
+    // With thresholds [10, 20, 30, 50], 25% should be level 2 (> 20%, ≤ 30%)
+    expect(day16?.level).toBe(2)
   })
 
   describe('configurable levelCount', () => {
     it('defaults to 5 levels (0-4) when levelCount not specified', () => {
       const config: PipelineConfig = { mode: 'fixed', years: 1 }
+      // With thresholds [20, 40, 60, 80]:
+      // 0-20% → level 0, 21-40% → level 1, 41-60% → level 2, 61-80% → level 3, 81-100% → level 4
       const rawData = [
-        { date: '2024-01-15', count: 100 },
-        { date: '2024-01-16', count: 76 }, // 76% → level 4
-        { date: '2024-01-17', count: 51 }, // 51% → level 3
-        { date: '2024-01-18', count: 26 }, // 26% → level 2
-        { date: '2024-01-19', count: 1 }, // 1% → level 1
+        { date: '2024-01-15', count: 100 }, // 100% → level 4
+        { date: '2024-01-16', count: 85 }, // 85% → level 4
+        { date: '2024-01-17', count: 65 }, // 65% → level 3
+        { date: '2024-01-18', count: 45 }, // 45% → level 2
+        { date: '2024-01-19', count: 25 }, // 25% → level 1
+        { date: '2024-01-20', count: 15 }, // 15% → level 0
       ]
       const result = processHeatmapData(config, rawData, date(2024, 6, 20))
 
@@ -892,35 +976,39 @@ describe('processHeatmapData', () => {
       expect(allDays.find((d) => d.date === '2024-01-17')?.level).toBe(3)
       expect(allDays.find((d) => d.date === '2024-01-18')?.level).toBe(2)
       expect(allDays.find((d) => d.date === '2024-01-19')?.level).toBe(1)
+      expect(allDays.find((d) => d.date === '2024-01-20')?.level).toBe(0)
     })
 
-    it('supports levelCount=2 (binary levels)', () => {
+    it('supports levelCount=2 (threshold at 50%)', () => {
       const config: PipelineConfig = { mode: 'fixed', years: 1, levelCount: 2 }
       const rawData = [
-        { date: '2024-01-15', count: 100 },
-        { date: '2024-01-16', count: 1 },
+        { date: '2024-01-15', count: 100 }, // 100% → level 1
+        { date: '2024-01-16', count: 60 }, // 60% → level 1
+        { date: '2024-01-17', count: 40 }, // 40% → level 0
       ]
       const result = processHeatmapData(config, rawData, date(2024, 6, 20))
 
       const allDays = result[0].weeks.flat()
       expect(allDays.find((d) => d.date === '2024-01-01')?.level).toBe(0) // no activity
-      expect(allDays.find((d) => d.date === '2024-01-15')?.level).toBe(1) // active
-      expect(allDays.find((d) => d.date === '2024-01-16')?.level).toBe(1) // active
+      expect(allDays.find((d) => d.date === '2024-01-15')?.level).toBe(1) // > 50%
+      expect(allDays.find((d) => d.date === '2024-01-16')?.level).toBe(1) // > 50%
+      expect(allDays.find((d) => d.date === '2024-01-17')?.level).toBe(0) // ≤ 50%
     })
 
     it('supports levelCount=10', () => {
       const config: PipelineConfig = { mode: 'fixed', years: 1, levelCount: 10 }
+      // With thresholds [10, 20, 30, 40, 50, 60, 70, 80, 90]
       const rawData = [
-        { date: '2024-01-15', count: 100 }, // max
-        { date: '2024-01-16', count: 50 }, // 50% → level 5
-        { date: '2024-01-17', count: 10 }, // 10% → level 1
+        { date: '2024-01-15', count: 100 }, // 100% → level 9
+        { date: '2024-01-16', count: 50 }, // 50% ≤ 50% → level 4
+        { date: '2024-01-17', count: 10 }, // 10% ≤ 10% → level 0
       ]
       const result = processHeatmapData(config, rawData, date(2024, 6, 20))
 
       const allDays = result[0].weeks.flat()
       expect(allDays.find((d) => d.date === '2024-01-15')?.level).toBe(9) // highest
-      expect(allDays.find((d) => d.date === '2024-01-16')?.level).toBe(5) // 50% ≤ 55.5%
-      expect(allDays.find((d) => d.date === '2024-01-17')?.level).toBe(1) // 10% ≤ 11.1%
+      expect(allDays.find((d) => d.date === '2024-01-16')?.level).toBe(4) // 50% ≤ 50%
+      expect(allDays.find((d) => d.date === '2024-01-17')?.level).toBe(0) // 10% ≤ 10%
     })
 
     it('clamps levelCount below 2 to 2', () => {
@@ -929,7 +1017,7 @@ describe('processHeatmapData', () => {
       const result = processHeatmapData(config, rawData, date(2024, 6, 20))
 
       const allDays = result[0].weeks.flat()
-      // With levelCount=2, any non-zero count should be level 1
+      // With levelCount=2 (threshold at 50%), 100% should be level 1
       expect(allDays.find((d) => d.date === '2024-01-15')?.level).toBe(1)
     })
 
@@ -952,30 +1040,31 @@ describe('processHeatmapData', () => {
         mode: 'fixed',
         years: 1,
         levelCount: 3,
-        levelThresholds: [30], // single threshold at 30%
+        levelThresholds: [30, 70], // 2 thresholds for 3 levels
       }
       const rawData = [
-        { date: '2024-01-15', count: 100 }, // max
-        { date: '2024-01-16', count: 25 }, // 25% ≤ 30% → level 1
-        { date: '2024-01-17', count: 50 }, // 50% > 30% → level 2
+        { date: '2024-01-15', count: 100 }, // 100% > 70% → level 2
+        { date: '2024-01-16', count: 25 }, // 25% ≤ 30% → level 0
+        { date: '2024-01-17', count: 50 }, // 50% ≤ 70% → level 1
       ]
       const result = processHeatmapData(config, rawData, date(2024, 6, 20))
 
       const allDays = result[0].weeks.flat()
       expect(allDays.find((d) => d.date === '2024-01-15')?.level).toBe(2)
-      expect(allDays.find((d) => d.date === '2024-01-16')?.level).toBe(1)
-      expect(allDays.find((d) => d.date === '2024-01-17')?.level).toBe(2)
+      expect(allDays.find((d) => d.date === '2024-01-16')?.level).toBe(0)
+      expect(allDays.find((d) => d.date === '2024-01-17')?.level).toBe(1)
     })
   })
 
   describe('value_mode: clamp_zero (default)', () => {
     it('negative values are treated as level 0 by default', () => {
       const config: PipelineConfig = { mode: 'fixed', years: 1 }
+      // With thresholds [20, 40, 60, 80]
       const rawData = [
-        { date: '2024-01-15', count: 100 }, // max (positive)
-        { date: '2024-01-16', count: -50 }, // negative → should be level 0
-        { date: '2024-01-17', count: -5 }, // negative → should be level 0
-        { date: '2024-01-18', count: 0 }, // zero → level 0
+        { date: '2024-01-15', count: 100 }, // max → level 4
+        { date: '2024-01-16', count: -50 }, // negative → clamped to 0% → level 0
+        { date: '2024-01-17', count: -5 }, // negative → clamped to 0% → level 0
+        { date: '2024-01-18', count: 0 }, // 0% → level 0
         { date: '2024-01-19', count: 25 }, // 25% → level 1
       ]
       const result = processHeatmapData(config, rawData, date(2024, 6, 20))
@@ -985,7 +1074,7 @@ describe('processHeatmapData', () => {
       expect(allDays.find((d) => d.date === '2024-01-16')?.level).toBe(0) // negative → 0
       expect(allDays.find((d) => d.date === '2024-01-17')?.level).toBe(0) // negative → 0
       expect(allDays.find((d) => d.date === '2024-01-18')?.level).toBe(0) // zero → 0
-      expect(allDays.find((d) => d.date === '2024-01-19')?.level).toBe(1) // 25%
+      expect(allDays.find((d) => d.date === '2024-01-19')?.level).toBe(1) // 25% > 20%
     })
 
     it('explicit value_mode: clamp_zero treats negatives as level 0', () => {
@@ -1015,7 +1104,7 @@ describe('processHeatmapData', () => {
 
       expect(result[0].maxCount).toBe(10) // maxCount ignores negatives
       const allDays = result[0].weeks.flat()
-      expect(allDays.find((d) => d.date === '2024-01-17')?.level).toBe(2) // 50%
+      expect(allDays.find((d) => d.date === '2024-01-17')?.level).toBe(2) // 50% → level 2
     })
   })
 

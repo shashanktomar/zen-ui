@@ -17,7 +17,7 @@ export interface PipelineConfig {
   targetYear?: number // For fixed mode: which year to end on (default current year)
   weekStartDay?: 0 | 1 // 0 = Sunday, 1 = Monday (default: 1)
   levelCount?: number // Number of color intensity levels 2-10 (default: 5)
-  levelThresholds?: number[] // Percentages for level boundaries (must have levelCount-1 values if provided)
+  levelThresholds?: number[] // Percentage boundaries for levels (exactly levelCount-1 values, e.g., [20,40,60,80] for 5 levels)
   valueMode?: 'clamp_zero' | 'range' // How to handle negative values (default: clamp_zero)
   missingMode?: 'zero' | 'transparent' // How to handle missing data (default: zero)
 }
@@ -93,14 +93,14 @@ function getDayOfWeek(date: Date): number {
 /**
  * Calculates evenly distributed thresholds for a given level count.
  *
- * For levelCount=5: [25, 50, 75] (4 non-zero levels, 3 thresholds)
- * For levelCount=10: [11.1, 22.2, 33.3, 44.4, 55.5, 66.6, 77.7, 88.8] (9 non-zero levels, 8 thresholds)
+ * Returns exactly levelCount-1 threshold values that divide the percentage range [0, 100].
+ * For levelCount=5: [20, 40, 60, 80] (4 thresholds dividing into 5 levels)
+ * For levelCount=10: [10, 20, 30, 40, 50, 60, 70, 80, 90] (9 thresholds dividing into 10 levels)
  */
 export function calculateEvenThresholds(levelCount: number): number[] {
-  const nonZeroLevels = levelCount - 1
   const thresholds: number[] = []
-  for (let i = 1; i < nonZeroLevels; i++) {
-    thresholds.push((i / nonZeroLevels) * 100)
+  for (let i = 1; i < levelCount; i++) {
+    thresholds.push((i / levelCount) * 100)
   }
   return thresholds
 }
@@ -206,6 +206,11 @@ export function calculateDateRanges(
 
 /**
  * Maps a count value to a color intensity level (0 to levelCount-1).
+ *
+ * Uses a unified threshold model:
+ * - levelCount=N produces N levels (0 to N-1)
+ * - thresholds array has N-1 percentage boundaries
+ * - Negative values are clamped to 0%
  */
 export function getLevel(
   count: number,
@@ -213,23 +218,25 @@ export function getLevel(
   levelCount: number = 5,
   thresholds?: number[],
 ): number {
-  if (count <= 0) return 0 // Empty, zero, or negative (clamped to zero)
-  if (maxCount === 0) return 1 // Edge case: all zeros except this
+  if (maxCount === 0) return 0
 
-  // Auto-calculate thresholds if not provided
   const effectiveThresholds = thresholds ?? calculateEvenThresholds(levelCount)
-
-  const percentage = (count / maxCount) * 100
+  const percentage = (Math.max(0, count) / maxCount) * 100 // clamp negatives to 0%
 
   for (let i = 0; i < effectiveThresholds.length; i++) {
-    if (percentage <= effectiveThresholds[i]) return i + 1
+    if (percentage <= effectiveThresholds[i]) return i
   }
-  return levelCount - 1 // Highest level
+  return levelCount - 1
 }
 
 /**
  * Maps a count value to a level based on min..max range.
  * Used when valueMode is 'range'.
+ *
+ * Uses the same unified threshold model as getLevel:
+ * - levelCount=N produces N levels (0 to N-1)
+ * - thresholds array has N-1 percentage boundaries
+ * - Percentage is relative to the min..max range
  */
 export function getLevelRange(
   count: number,
@@ -238,24 +245,15 @@ export function getLevelRange(
   levelCount: number = 5,
   thresholds?: number[],
 ): number {
-  // Handle edge case: all same value
   if (minCount === maxCount) return Math.floor(levelCount / 2)
 
-  // Calculate percentage within the range (0-100)
-  const range = maxCount - minCount
-  const percentage = ((count - minCount) / range) * 100
+  const effectiveThresholds = thresholds ?? calculateEvenThresholds(levelCount)
+  const percentage = ((count - minCount) / (maxCount - minCount)) * 100
 
-  // Use custom thresholds if provided
-  if (thresholds) {
-    for (let i = 0; i < thresholds.length; i++) {
-      if (percentage <= thresholds[i]) return i
-    }
-    return levelCount - 1
+  for (let i = 0; i < effectiveThresholds.length; i++) {
+    if (percentage <= effectiveThresholds[i]) return i
   }
-
-  // Linear distribution: evenly spread across levels
-  const level = Math.floor((percentage / 100) * levelCount)
-  return Math.min(level, levelCount - 1) // Clamp to max level
+  return levelCount - 1
 }
 
 /**

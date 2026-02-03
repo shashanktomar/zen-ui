@@ -79,7 +79,7 @@ title: Activity
 | `baseColor`       | string   | `#40c463`    | Base color for the heatmap (hex format)                           |
 | `backgroundColor` | string   | —            | Custom card background color                                      |
 | `levelCount`      | number   | `5`          | Number of intensity levels (2-10)                                 |
-| `levelThresholds` | number[] | —            | Custom percentile thresholds (must have `levelCount - 1` values)  |
+| `levelThresholds` | number[] | —            | Custom percentage boundaries for levels (see below)               |
 | `weekStartDay`    | string   | `monday`     | First day of week: `monday`, `mon`, `sunday`, or `sun`            |
 | `valueMode`       | string   | `clamp_zero` | `clamp_zero` (negatives = 0) or `range` (levels span min..max)    |
 | `missingMode`     | string   | `zero`       | `zero` (missing = 0) or `transparent` (missing days are distinct) |
@@ -201,7 +201,7 @@ levelCount: 8
 
 **Custom Thresholds**
 
-Define your own percentile thresholds for level boundaries:
+Define custom percentage boundaries to control how values map to color intensity levels.
 
 ```yaml
 type: custom:zen-ui
@@ -209,7 +209,38 @@ card: heatmap
 entity: sensor.activity
 title: Activity Score
 levelCount: 5
-levelThresholds: [10, 30, 60, 90]
+levelThresholds: [20, 40, 60, 80]
+```
+
+**How it works:**
+
+- `levelCount` defines how many distinct colors you'll see (e.g., 5 levels = 5 colors)
+- `levelThresholds` defines the percentage boundaries between levels
+- You need exactly `levelCount - 1` threshold values (4 boundaries for 5 levels)
+
+With `levelThresholds: [20, 40, 60, 80]` and `levelCount: 5`:
+
+```
+Value as % of range    Level    Color intensity
+─────────────────────────────────────────────────
+    0% - 20%      →    0       (lightest)
+   20% - 40%      →    1
+   40% - 60%      →    2
+   60% - 80%      →    3
+   80% - 100%     →    4       (darkest)
+```
+
+The "range" depends on your `valueMode`:
+
+- **Default (`clamp_zero`)**: Range is 0 to max value. A value of 50 with max 100 = 50%
+- **Range mode**: Range is min to max. A value of 0 with min -10 and max 30 = 25%
+
+**Example: Skewed distribution**
+
+If most of your data is low values with occasional spikes, use lower thresholds:
+
+```yaml
+levelThresholds: [5, 15, 35, 70] # More levels for lower values
 ```
 
 **Week Starting on Sunday**
