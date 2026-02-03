@@ -429,6 +429,15 @@ export class ZenUI extends LitElement {
     })
   }
 
+  private _getUnit(): string | undefined {
+    if (!this._config) return undefined
+    // Config unit takes precedence over auto-detected unit
+    if (this._config.unit) return this._config.unit
+    // Auto-detect from entity's unit_of_measurement attribute
+    const stateObj = this.hass?.states[this._config.entity]
+    return stateObj?.attributes?.unit_of_measurement as string | undefined
+  }
+
   render() {
     if (!this._config) return html``
 
@@ -509,7 +518,7 @@ export class ZenUI extends LitElement {
               <div class="tooltip-count">
                 ${this._tooltip.missing
                   ? t('missing', this._getLocale())
-                  : this._tooltip.count.toFixed(2)}
+                  : `${this._tooltip.count.toFixed(2)}${this._getUnit() ? ` ${this._getUnit()}` : ''}`}
               </div>
             </div>
           `

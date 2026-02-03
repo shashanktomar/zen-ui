@@ -177,6 +177,7 @@ const HeatmapConfigSchema = v.pipe(
     missingMode: v.optional(MissingModeSchema, CONFIG_DEFAULTS.missingMode),
     valueMode: v.optional(ValueModeSchema, CONFIG_DEFAULTS.valueMode),
     baseColor: v.optional(BaseColorSchema, CONFIG_DEFAULTS.baseColor),
+    unit: v.optional(v.string()),
     backgroundColor: v.optional(v.string()),
 
     // Diverging color scheme (both required for diverging mode)

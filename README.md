@@ -87,6 +87,7 @@ title: Activity
 | `valueMode`       | string   | `clamp_zero` | `clamp_zero` (negatives = 0) or `range` (levels span min..max)    |
 | `missingMode`     | string   | `zero`       | `zero` (missing = 0) or `transparent` (missing days are distinct) |
 | `show_legend`     | boolean  | `true`       | Show the Less/More legend                                         |
+| `unit`            | string   | —            | Unit to display in tooltip (auto-detects from entity if not set)  |
 
 > **Note:** When using `valueMode: range` or diverging colors, `missingMode` is automatically set to `transparent` because zero has meaning within the range.
 
