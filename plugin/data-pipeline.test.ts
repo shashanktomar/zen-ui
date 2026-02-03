@@ -523,6 +523,22 @@ describe('getLevel', () => {
       expect(getLevel(85, 100, 10, customThresholds)).toBe(9)
     })
   })
+
+  describe('negative values (clamp_zero behavior)', () => {
+    it('negative count returns level 0 (treated as no activity)', () => {
+      expect(getLevel(-5, 100)).toBe(0)
+    })
+
+    it('negative count with various maxCount values returns level 0', () => {
+      expect(getLevel(-1, 10)).toBe(0)
+      expect(getLevel(-50, 100)).toBe(0)
+      expect(getLevel(-100, 100)).toBe(0)
+    })
+
+    it('negative count with maxCount=0 returns level 0', () => {
+      expect(getLevel(-5, 0)).toBe(0)
+    })
+  })
 })
 
 describe('boundDataToRange', () => {
@@ -949,6 +965,57 @@ describe('processHeatmapData', () => {
       expect(allDays.find((d) => d.date === '2024-01-15')?.level).toBe(2)
       expect(allDays.find((d) => d.date === '2024-01-16')?.level).toBe(1)
       expect(allDays.find((d) => d.date === '2024-01-17')?.level).toBe(2)
+    })
+  })
+
+  describe('value_mode: clamp_zero (default)', () => {
+    it('negative values are treated as level 0 by default', () => {
+      const config: PipelineConfig = { mode: 'fixed', years: 1 }
+      const rawData = [
+        { date: '2024-01-15', count: 100 }, // max (positive)
+        { date: '2024-01-16', count: -50 }, // negative → should be level 0
+        { date: '2024-01-17', count: -5 }, // negative → should be level 0
+        { date: '2024-01-18', count: 0 }, // zero → level 0
+        { date: '2024-01-19', count: 25 }, // 25% → level 1
+      ]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      const allDays = result[0].weeks.flat()
+      expect(allDays.find((d) => d.date === '2024-01-15')?.level).toBe(4) // max
+      expect(allDays.find((d) => d.date === '2024-01-16')?.level).toBe(0) // negative → 0
+      expect(allDays.find((d) => d.date === '2024-01-17')?.level).toBe(0) // negative → 0
+      expect(allDays.find((d) => d.date === '2024-01-18')?.level).toBe(0) // zero → 0
+      expect(allDays.find((d) => d.date === '2024-01-19')?.level).toBe(1) // 25%
+    })
+
+    it('explicit value_mode: clamp_zero treats negatives as level 0', () => {
+      const config: PipelineConfig = {
+        mode: 'fixed',
+        years: 1,
+        valueMode: 'clamp_zero',
+      }
+      const rawData = [
+        { date: '2024-01-15', count: 100 },
+        { date: '2024-01-16', count: -25 },
+      ]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      const allDays = result[0].weeks.flat()
+      expect(allDays.find((d) => d.date === '2024-01-16')?.level).toBe(0)
+    })
+
+    it('negative values do not affect maxCount calculation', () => {
+      const config: PipelineConfig = { mode: 'fixed', years: 1 }
+      const rawData = [
+        { date: '2024-01-15', count: -1000 }, // large negative should not affect max
+        { date: '2024-01-16', count: 10 }, // this should be the max
+        { date: '2024-01-17', count: 5 }, // 50% of max → level 2
+      ]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      expect(result[0].maxCount).toBe(10) // maxCount ignores negatives
+      const allDays = result[0].weeks.flat()
+      expect(allDays.find((d) => d.date === '2024-01-17')?.level).toBe(2) // 50%
     })
   })
 })

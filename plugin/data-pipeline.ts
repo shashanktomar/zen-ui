@@ -18,6 +18,7 @@ export interface PipelineConfig {
   weekStartDay?: 0 | 1 // 0 = Sunday, 1 = Monday (default: 1)
   levelCount?: number // Number of color intensity levels 2-10 (default: 5)
   levelThresholds?: number[] // Percentages for level boundaries (must have levelCount-1 values if provided)
+  valueMode?: 'clamp_zero' // How to handle negative values (default: clamp_zero)
 }
 
 export interface ContributionData {
@@ -209,7 +210,7 @@ export function getLevel(
   levelCount: number = 5,
   thresholds?: number[],
 ): number {
-  if (count === 0) return 0 // Empty (no activity)
+  if (count <= 0) return 0 // Empty, zero, or negative (clamped to zero)
   if (maxCount === 0) return 1 // Edge case: all zeros except this
 
   // Auto-calculate thresholds if not provided
