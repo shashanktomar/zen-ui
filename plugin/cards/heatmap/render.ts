@@ -153,6 +153,8 @@ export function renderYearGraph(
                   height="${RECT_SIZE}"
                   x="${col * STEP}"
                   y="${row * STEP}"
+                  rx="2"
+                  ry="2"
                   fill="${color}"
                   style="cursor: pointer;"
                   @mouseenter=${(e: MouseEvent) => context.onCellMouseEnter(e, day.date, day.count, day.missing)}
