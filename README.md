@@ -68,27 +68,28 @@ title: Activity
 
 <br>
 
-| Option            | Type     | Default      | Description                                                       |
-| ----------------- | -------- | ------------ | ----------------------------------------------------------------- |
-| `entity`          | string   | **Required** | Entity ID that contains your data                                 |
-| `card`            | string   | **Required** | Card type: `heatmap`                                              |
-| `title`           | string   | —            | Card title displayed at the top                                   |
-| `attribute`       | string   | `data`       | Entity attribute containing the data array                        |
-| `range`           | string   | `rolling`    | `rolling` (last 365 days) or `year` (calendar years)              |
-| `years`           | number   | `1`          | Number of years to display (only for `range: year`)               |
-| `baseColor`       | string   | `#40c463`    | Base color for the heatmap (hex format)                           |
-| `negativeColor`   | string   | —            | Color for negative values (hex). Requires `positiveColor`         |
-| `positiveColor`   | string   | —            | Color for positive values (hex). Requires `negativeColor`         |
-| `neutralValue`    | number   | —            | Center point for diverging colors (default: 0 if in range)        |
-| `backgroundColor` | string   | —            | Custom card background color                                      |
-| `levelCount`      | number   | `5`          | Number of intensity levels (2-10)                                 |
-| `levelThresholds` | number[] | —            | Custom percentage boundaries for levels (see below)               |
-| `weekStartDay`    | string   | `monday`     | First day of week: `monday`, `mon`, `sunday`, or `sun`            |
-| `weekdayLabels`   | string   | `short`      | Weekday label display: `none`, `short`, `all`, or `letter`        |
-| `valueMode`       | string   | `clamp_zero` | `clamp_zero` (negatives = 0) or `range` (levels span min..max)    |
-| `missingMode`     | string   | `zero`       | `zero` (missing = 0) or `transparent` (missing days are distinct) |
-| `show_legend`     | boolean  | `true`       | Show the Less/More legend                                         |
-| `unit`            | string   | —            | Unit to display in tooltip (auto-detects from entity if not set)  |
+| Option            | Type     | Default      | Description                                                        |
+| ----------------- | -------- | ------------ | ------------------------------------------------------------------ |
+| `entity`          | string   | **Required** | Entity ID that contains your data                                  |
+| `card`            | string   | **Required** | Card type: `heatmap`                                               |
+| `title`           | string   | —            | Card title displayed at the top                                    |
+| `attribute`       | string   | `data`       | Entity attribute containing the data array                         |
+| `range`           | string   | `rolling`    | `rolling` (last 365 days) or `year` (calendar years)               |
+| `years`           | number   | `1`          | Number of years to display (only for `range: year`)                |
+| `baseColor`       | string   | `#40c463`    | Base color for the heatmap (hex format)                            |
+| `negativeColor`   | string   | —            | Color for negative values (hex). Requires `positiveColor`          |
+| `positiveColor`   | string   | —            | Color for positive values (hex). Requires `negativeColor`          |
+| `neutralValue`    | number   | —            | Center point for diverging colors (default: 0 if in range)         |
+| `backgroundColor` | string   | —            | Custom card background color                                       |
+| `levelCount`      | number   | `5`          | Number of intensity levels (2-10)                                  |
+| `levelThresholds` | number[] | —            | Custom percentage boundaries for levels (see below)                |
+| `maxValue`        | number   | —            | Absolute ceiling for 100% intensity (values ≥ this show max color) |
+| `weekStartDay`    | string   | `monday`     | First day of week: `monday`, `mon`, `sunday`, or `sun`             |
+| `weekdayLabels`   | string   | `short`      | Weekday label display: `none`, `short`, `all`, or `letter`         |
+| `valueMode`       | string   | `clamp_zero` | `clamp_zero` (negatives = 0) or `range` (levels span min..max)     |
+| `missingMode`     | string   | `zero`       | `zero` (missing = 0) or `transparent` (missing days are distinct)  |
+| `show_legend`     | boolean  | `true`       | Show the Less/More legend                                          |
+| `unit`            | string   | —            | Unit to display in tooltip (auto-detects from entity if not set)   |
 
 > **Note:** When using `valueMode: range` or diverging colors, `missingMode` is automatically set to `transparent` because zero has meaning within the range.
 
@@ -247,6 +248,28 @@ If most of your data is low values with occasional spikes, use lower thresholds:
 ```yaml
 levelThresholds: [5, 15, 35, 70] # More levels for lower values
 ```
+
+**Target-Based Intensity with maxValue**
+
+By default, the darkest color represents your highest value in the dataset. With `maxValue`, you can set an absolute target that represents 100% intensity.
+
+This is useful when you want to see how often you hit a specific goal, regardless of your actual maximum:
+
+```yaml
+type: custom:zen-ui
+card: heatmap
+entity: sensor.daily_steps
+title: Daily Steps (10k Goal)
+maxValue: 10000
+```
+
+With `maxValue: 10000`:
+
+- 10,000 steps = maximum intensity (darkest color)
+- 5,000 steps = 50% intensity
+- 20,000 steps = still maximum intensity (capped)
+
+Without `maxValue`, if your actual max is 30,000 steps, then 10,000 would only show as 33% intensity, making it hard to see your goal achievement at a glance.
 
 **Week Starting on Sunday**
 

@@ -197,6 +197,12 @@
       <div class="config-display" id="config-diverging-custom"></div>
     </div>
 
+    <div class="demo-container">
+      <div class="demo-label">Max Value Target (maxValue: 10000 steps)</div>
+      <zen-ui id="card-maxvalue"></zen-ui>
+      <div class="config-display" id="config-maxvalue"></div>
+    </div>
+
     <script type="module">
       import '../plugin/zen-ui.ts'
 
@@ -210,6 +216,7 @@
       const cardDivergingCustom = document.getElementById(
         'card-diverging-custom',
       )
+      const cardMaxValue = document.getElementById('card-maxvalue')
       const configRolling = document.getElementById('config-rolling')
       const configMultiyear = document.getElementById('config-multiyear')
       const configBinary = document.getElementById('config-binary')
@@ -220,6 +227,7 @@
       const configDivergingCustom = document.getElementById(
         'config-diverging-custom',
       )
+      const configMaxValue = document.getElementById('config-maxvalue')
       const themeBtn = document.getElementById('theme-toggle')
       const regenBtn = document.getElementById('regen-data')
       const localeSelect = document.getElementById('locale-select')
@@ -266,6 +274,13 @@
             state: 'on',
             attributes: {
               data: [],
+            },
+          },
+          'sensor.steps': {
+            state: 'on',
+            attributes: {
+              data: [],
+              unit_of_measurement: 'steps',
             },
           },
         },
@@ -422,6 +437,39 @@
         return data
       }
 
+      function generateStepsData() {
+        const data = []
+        const today = new Date()
+        const start = new Date(
+          today.getFullYear() - 1,
+          today.getMonth(),
+          today.getDate(),
+        )
+        const end = new Date(today)
+
+        const itr = new Date(start)
+        while (itr <= end) {
+          const dateStr = itr.toISOString().split('T')[0]
+          // Steps data: 0-30000, with most days between 2000-15000
+          // Occasional very high days (20000+) to show maxValue capping
+          const rand = Math.random()
+          let count
+          if (rand > 0.95) {
+            // 5%: Very high step days (20k-30k)
+            count = Math.floor(Math.random() * 10000) + 20000
+          } else if (rand > 0.2) {
+            // 75%: Normal activity (5k-12k)
+            count = Math.floor(Math.random() * 7000) + 5000
+          } else {
+            // 20%: Low activity days (1k-5k)
+            count = Math.floor(Math.random() * 4000) + 1000
+          }
+          data.push({ date: dateStr, count })
+          itr.setDate(itr.getDate() + 1)
+        }
+        return data
+      }
+
       function updateAllCards() {
         const hass = { ...mockHass }
         cardRolling.hass = hass
@@ -432,6 +480,7 @@
         cardNegative.hass = hass
         cardDiverging.hass = hass
         cardDivergingCustom.hass = hass
+        cardMaxValue.hass = hass
       }
 
       // Initial configs
@@ -499,6 +548,14 @@
         levelCount: 7,
       }
 
+      const maxValueConfig = {
+        card: 'heatmap',
+        entity: 'sensor.steps',
+        title: 'Daily Steps (10k target)',
+        maxValue: 10000,
+        baseColor: '#f97316',
+      }
+
       // Convert config to YAML format
       function toYaml(config) {
         let yaml = 'type: custom:zen-ui\n'
@@ -517,6 +574,7 @@
       configNegative.textContent = toYaml(negativeConfig)
       configDiverging.textContent = toYaml(divergingConfig)
       configDivergingCustom.textContent = toYaml(divergingCustomConfig)
+      configMaxValue.textContent = toYaml(maxValueConfig)
 
       // Initialize configs
       cardRolling.setConfig(rollingConfig)
@@ -527,6 +585,7 @@
       cardNegative.setConfig(negativeConfig)
       cardDiverging.setConfig(divergingConfig)
       cardDivergingCustom.setConfig(divergingCustomConfig)
+      cardMaxValue.setConfig(maxValueConfig)
 
       // Sync mockHass with selector values (browser may restore them on refresh)
       mockHass.locale.language = localeSelect.value
@@ -540,6 +599,7 @@
       mockHass.states['sensor.temperature_delta'].attributes.data =
         generateTemperatureDeltaData()
       mockHass.states['sensor.score'].attributes.data = generateScoreData()
+      mockHass.states['sensor.steps'].attributes.data = generateStepsData()
       updateAllCards()
 
       // Event Listeners
@@ -553,6 +613,7 @@
         mockHass.states['sensor.temperature_delta'].attributes.data =
           generateTemperatureDeltaData()
         mockHass.states['sensor.score'].attributes.data = generateScoreData()
+        mockHass.states['sensor.steps'].attributes.data = generateStepsData()
         updateAllCards()
       })
 
@@ -576,6 +637,7 @@
         negativeConfig.weekdayLabels = value
         divergingConfig.weekdayLabels = value
         divergingCustomConfig.weekdayLabels = value
+        maxValueConfig.weekdayLabels = value
         // Re-set all cards
         cardRolling.setConfig({ ...rollingConfig })
         cardMultiyear.setConfig({ ...multiyearConfig })
@@ -585,6 +647,7 @@
         cardNegative.setConfig({ ...negativeConfig })
         cardDiverging.setConfig({ ...divergingConfig })
         cardDivergingCustom.setConfig({ ...divergingCustomConfig })
+        cardMaxValue.setConfig({ ...maxValueConfig })
         // Update displayed configs
         configRolling.textContent = toYaml(rollingConfig)
         configMultiyear.textContent = toYaml(multiyearConfig)
@@ -594,6 +657,7 @@
         configNegative.textContent = toYaml(negativeConfig)
         configDiverging.textContent = toYaml(divergingConfig)
         configDivergingCustom.textContent = toYaml(divergingCustomConfig)
+        configMaxValue.textContent = toYaml(maxValueConfig)
       })
     </script>
   </body>

@@ -433,7 +433,14 @@ export function boundDataToRange(
     if (valueMode === 'range') {
       // For range mode, missing days don't get a meaningful level
       level = hasData
-        ? getLevelRange(count, minCount, maxCount, levelCount, thresholds, maxValue)
+        ? getLevelRange(
+            count,
+            minCount,
+            maxCount,
+            levelCount,
+            thresholds,
+            maxValue,
+          )
         : 0
     } else {
       level = getLevel(count, maxCount, levelCount, thresholds, maxValue)
