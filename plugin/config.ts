@@ -153,6 +153,17 @@ const NeutralValueSchema = v.pipe(
   }),
 )
 
+// Schema for maxValue (optional positive finite number)
+const MaxValueSchema = v.pipe(
+  v.unknown(),
+  v.transform((input): number | undefined => {
+    if (typeof input === 'number' && Number.isFinite(input) && input > 0) {
+      return input
+    }
+    return undefined
+  }),
+)
+
 // Schema for grid_options (HA sections view)
 const GridOptionsSchema = v.optional(
   v.object({
@@ -198,6 +209,9 @@ const HeatmapConfigSchema = v.pipe(
     negativeColor: v.optional(OptionalHexColorSchema),
     positiveColor: v.optional(OptionalHexColorSchema),
     neutralValue: v.optional(NeutralValueSchema),
+
+    // Absolute max value for 100% intensity
+    maxValue: v.optional(MaxValueSchema),
 
     grid_options: GridOptionsSchema,
   }),

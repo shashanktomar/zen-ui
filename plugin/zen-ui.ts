@@ -373,6 +373,7 @@ export class ZenUI extends LitElement {
       valueMode: isDiverging ? 'range' : config.valueMode,
       isDiverging,
       neutralValue: config.neutralValue,
+      maxValue: config.maxValue,
     }
   }
 

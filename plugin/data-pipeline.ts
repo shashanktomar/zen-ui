@@ -23,6 +23,7 @@ export interface PipelineConfig {
   // Diverging color scheme options
   isDiverging?: boolean // If true, calculate neutralLevel for color generation
   neutralValue?: number // The neutral point value (default: 0 if in range, else midpoint)
+  maxValue?: number // Absolute ceiling for 100% intensity (when set, values >= maxValue get max level)
 }
 
 export interface ContributionData {
@@ -215,17 +216,22 @@ export function calculateDateRanges(
  * - levelCount=N produces N levels (0 to N-1)
  * - thresholds array has N-1 percentage boundaries
  * - Negative values are clamped to 0%
+ * - When maxValue is provided, it overrides maxCount as the 100% ceiling
  */
 export function getLevel(
   count: number,
   maxCount: number,
   levelCount: number = 5,
   thresholds?: number[],
+  maxValue?: number,
 ): number {
-  if (maxCount === 0) return 0
+  // Use maxValue if provided, otherwise use maxCount
+  const effectiveMax = maxValue ?? maxCount
+  if (effectiveMax === 0) return 0
 
   const effectiveThresholds = thresholds ?? calculateEvenThresholds(levelCount)
-  const percentage = (Math.max(0, count) / maxCount) * 100 // clamp negatives to 0%
+  // Clamp negatives to 0%, and cap at 100% (for values exceeding effectiveMax)
+  const percentage = Math.min((Math.max(0, count) / effectiveMax) * 100, 100)
 
   for (let i = 0; i < effectiveThresholds.length; i++) {
     if (percentage <= effectiveThresholds[i]) return i
@@ -280,6 +286,7 @@ export function calculateNeutralLevel(
  * - levelCount=N produces N levels (0 to N-1)
  * - thresholds array has N-1 percentage boundaries
  * - Percentage is relative to the min..max range
+ * - When maxValue/minValue are provided, they override the dynamic bounds
  */
 export function getLevelRange(
   count: number,
@@ -287,11 +294,20 @@ export function getLevelRange(
   maxCount: number,
   levelCount: number = 5,
   thresholds?: number[],
+  maxValue?: number,
+  minValue?: number,
 ): number {
-  if (minCount === maxCount) return Math.floor(levelCount / 2)
+  // Use provided bounds if available, otherwise use dynamic min/max
+  const effectiveMin = minValue ?? minCount
+  const effectiveMax = maxValue ?? maxCount
+
+  if (effectiveMin === effectiveMax) return Math.floor(levelCount / 2)
 
   const effectiveThresholds = thresholds ?? calculateEvenThresholds(levelCount)
-  const percentage = ((count - minCount) / (maxCount - minCount)) * 100
+  // Clamp percentage to 0-100% range
+  const rawPercentage =
+    ((count - effectiveMin) / (effectiveMax - effectiveMin)) * 100
+  const percentage = Math.max(0, Math.min(100, rawPercentage))
 
   for (let i = 0; i < effectiveThresholds.length; i++) {
     if (percentage <= effectiveThresholds[i]) return i
@@ -361,6 +377,7 @@ export function boundDataToRange(
   isDiverging?: boolean,
   neutralValue?: number,
   globalStats?: GlobalStats,
+  maxValue?: number,
 ): HeatmapData {
   // Build lookup map from normalized data
   const dataMap = new Map<string, number>()
@@ -416,10 +433,10 @@ export function boundDataToRange(
     if (valueMode === 'range') {
       // For range mode, missing days don't get a meaningful level
       level = hasData
-        ? getLevelRange(count, minCount, maxCount, levelCount, thresholds)
+        ? getLevelRange(count, minCount, maxCount, levelCount, thresholds, maxValue)
         : 0
     } else {
-      level = getLevel(count, maxCount, levelCount, thresholds)
+      level = getLevel(count, maxCount, levelCount, thresholds, maxValue)
     }
 
     const day: BoundedDay = { date, count, level }
@@ -484,6 +501,7 @@ export function processHeatmapData(
   const missingMode = config.missingMode
   const isDiverging = config.isDiverging
   const neutralValue = config.neutralValue
+  const maxValue = config.maxValue
 
   // Force range mode for diverging (diverging requires min/max range semantics)
   const valueMode = isDiverging ? 'range' : config.valueMode
@@ -504,6 +522,7 @@ export function processHeatmapData(
       isDiverging,
       neutralValue,
       globalStats,
+      maxValue,
     ),
   )
 }

@@ -573,6 +573,40 @@ describe('getLevel', () => {
       expect(getLevel(-5, 0)).toBe(0)
     })
   })
+
+  describe('with explicit maxValue', () => {
+    it('uses maxValue instead of maxCount for percentage calculation', () => {
+      // maxValue=10, so 5 is 50% regardless of actual maxCount=100
+      expect(getLevel(5, 100, 5, undefined, 10)).toBe(2) // 50% → level 2
+    })
+
+    it('values at maxValue get highest level', () => {
+      // maxValue=10, count=10 is 100%
+      expect(getLevel(10, 100, 5, undefined, 10)).toBe(4) // 100% → level 4
+    })
+
+    it('values exceeding maxValue cap at highest level', () => {
+      // maxValue=10, count=30 exceeds it, should cap at level 4
+      expect(getLevel(30, 100, 5, undefined, 10)).toBe(4)
+      expect(getLevel(100, 100, 5, undefined, 10)).toBe(4)
+      expect(getLevel(1000, 100, 5, undefined, 10)).toBe(4)
+    })
+
+    it('works with custom thresholds', () => {
+      // maxValue=100, thresholds [10, 30, 60, 90]
+      const thresholds = [10, 30, 60, 90]
+      expect(getLevel(5, 1000, 5, thresholds, 100)).toBe(0) // 5% ≤ 10%
+      expect(getLevel(20, 1000, 5, thresholds, 100)).toBe(1) // 20% ≤ 30%
+      expect(getLevel(50, 1000, 5, thresholds, 100)).toBe(2) // 50% ≤ 60%
+      expect(getLevel(80, 1000, 5, thresholds, 100)).toBe(3) // 80% ≤ 90%
+      expect(getLevel(95, 1000, 5, thresholds, 100)).toBe(4) // 95% > 90%
+    })
+
+    it('falls back to maxCount when maxValue is undefined', () => {
+      expect(getLevel(50, 100, 5, undefined, undefined)).toBe(2) // 50% → level 2
+      expect(getLevel(50, 100)).toBe(2) // same without explicit undefined
+    })
+  })
 })
 
 describe('getLevelRange', () => {
@@ -617,6 +651,29 @@ describe('getLevelRange', () => {
           `value ${val}: getLevel=${levelFromGetLevel}, getLevelRange=${levelFromGetLevelRange}`,
         ).toBe(levelFromGetLevel)
       }
+    })
+  })
+
+  describe('with explicit maxValue', () => {
+    it('uses maxValue instead of maxCount for percentage calculation', () => {
+      // Range [-10, 100] but maxValue=10, so 5 is at 75% of [-10, 10]
+      expect(getLevelRange(5, -10, 100, 5, undefined, 10)).toBe(3) // 75% → level 3
+    })
+
+    it('values at maxValue get highest level', () => {
+      // maxValue=10 with range [-10, 100], count=10 is 100% of [-10, 10]
+      expect(getLevelRange(10, -10, 100, 5, undefined, 10)).toBe(4) // 100% → level 4
+    })
+
+    it('values exceeding maxValue cap at highest level', () => {
+      // maxValue=10, count=50 exceeds it, should cap at level 4
+      expect(getLevelRange(50, -10, 100, 5, undefined, 10)).toBe(4)
+      expect(getLevelRange(100, -10, 100, 5, undefined, 10)).toBe(4)
+    })
+
+    it('values below minValue cap at lowest level', () => {
+      // minValue=0, maxValue=10, count=-5 is below, should cap at level 0
+      expect(getLevelRange(-5, -10, 100, 5, undefined, 10, 0)).toBe(0)
     })
   })
 })
@@ -1265,6 +1322,93 @@ describe('processHeatmapData', () => {
 
       expect(result[0].minCount).toBe(-20)
       expect(result[0].maxCount).toBe(30)
+    })
+  })
+
+  describe('maxValue configuration', () => {
+    it('uses maxValue as 100% ceiling instead of dynamic max', () => {
+      const config: PipelineConfig = {
+        mode: 'fixed',
+        years: 1,
+        maxValue: 10000, // 10k steps = 100%
+      }
+      // With thresholds [20, 40, 60, 80]:
+      // 10000 steps = 100% → level 4
+      // 5000 steps = 50% → level 2
+      // 30000 steps > 10000 → capped at 100% → level 4
+      const rawData = [
+        { date: '2024-01-15', count: 30000 }, // actual max but exceeds maxValue
+        { date: '2024-01-16', count: 10000 }, // at maxValue → 100%
+        { date: '2024-01-17', count: 5000 }, // 50%
+        { date: '2024-01-18', count: 2000 }, // 20%
+        { date: '2024-01-19', count: 1000 }, // 10%
+      ]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      const allDays = result[0].weeks.flat()
+      expect(allDays.find((d) => d.date === '2024-01-15')?.level).toBe(4) // >100% capped
+      expect(allDays.find((d) => d.date === '2024-01-16')?.level).toBe(4) // 100%
+      expect(allDays.find((d) => d.date === '2024-01-17')?.level).toBe(2) // 50%
+      expect(allDays.find((d) => d.date === '2024-01-18')?.level).toBe(0) // 20%
+      expect(allDays.find((d) => d.date === '2024-01-19')?.level).toBe(0) // 10%
+    })
+
+    it('preserves dynamic behavior when maxValue is not set', () => {
+      const config: PipelineConfig = { mode: 'fixed', years: 1 }
+      // Without maxValue, 30000 is the max (100%)
+      const rawData = [
+        { date: '2024-01-15', count: 30000 }, // 100% → level 4
+        { date: '2024-01-16', count: 10000 }, // 33% → level 1
+        { date: '2024-01-17', count: 5000 }, // 17% → level 0
+      ]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      const allDays = result[0].weeks.flat()
+      expect(allDays.find((d) => d.date === '2024-01-15')?.level).toBe(4) // 100%
+      expect(allDays.find((d) => d.date === '2024-01-16')?.level).toBe(1) // ~33%
+      expect(allDays.find((d) => d.date === '2024-01-17')?.level).toBe(0) // ~17%
+    })
+
+    it('works with custom levelThresholds', () => {
+      const config: PipelineConfig = {
+        mode: 'fixed',
+        years: 1,
+        maxValue: 100,
+        levelThresholds: [25, 50, 75, 90], // 4 thresholds for 5 levels
+      }
+      const rawData = [
+        { date: '2024-01-15', count: 150 }, // 150% capped → level 4
+        { date: '2024-01-16', count: 100 }, // 100% > 90% → level 4
+        { date: '2024-01-17', count: 80 }, // 80% > 75% → level 3
+        { date: '2024-01-18', count: 60 }, // 60% > 50% → level 2
+        { date: '2024-01-19', count: 30 }, // 30% > 25% → level 1
+        { date: '2024-01-20', count: 20 }, // 20% ≤ 25% → level 0
+      ]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      const allDays = result[0].weeks.flat()
+      expect(allDays.find((d) => d.date === '2024-01-15')?.level).toBe(4)
+      expect(allDays.find((d) => d.date === '2024-01-16')?.level).toBe(4)
+      expect(allDays.find((d) => d.date === '2024-01-17')?.level).toBe(3)
+      expect(allDays.find((d) => d.date === '2024-01-18')?.level).toBe(2)
+      expect(allDays.find((d) => d.date === '2024-01-19')?.level).toBe(1)
+      expect(allDays.find((d) => d.date === '2024-01-20')?.level).toBe(0)
+    })
+
+    it('maxCount still reflects actual data max for tooltip display', () => {
+      const config: PipelineConfig = {
+        mode: 'fixed',
+        years: 1,
+        maxValue: 10000,
+      }
+      const rawData = [
+        { date: '2024-01-15', count: 30000 }, // exceeds maxValue
+        { date: '2024-01-16', count: 5000 },
+      ]
+      const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+
+      // maxCount should still be the actual max for display purposes
+      expect(result[0].maxCount).toBe(30000)
     })
   })
 
