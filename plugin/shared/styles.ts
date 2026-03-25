@@ -9,8 +9,6 @@ import { css } from 'lit'
 export const baseStyles = css`
   :host {
     display: block;
-    --ha-card-background: var(--card-background-color, #fff);
-
     /* Default GitHub Light Theme Colors */
     --gh-c-0: #ebedf0;
     --gh-c-1: #9be9a8;
@@ -44,7 +42,7 @@ export const baseStyles = css`
     display: flex;
     flex-direction: column;
     align-items: center;
-    background: var(--ha-card-background);
+    background: var(--ha-card-background, var(--card-background-color, #fff));
     color: var(--primary-text-color);
   }
 
@@ -56,21 +54,33 @@ export const baseStyles = css`
     margin-bottom: 20px;
     color: var(--primary-text-color);
     text-align: left;
-    font-family:
-      -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto,
-      sans-serif;
+    font-family: var(
+      --ha-font-family-body,
+      -apple-system,
+      BlinkMacSystemFont,
+      'SF Pro Display',
+      'Segoe UI',
+      Roboto,
+      sans-serif
+    );
   }
 
   .tooltip {
     position: fixed;
     padding: 8px 12px;
     background: var(--primary-text-color);
-    color: var(--ha-card-background);
+    color: var(--ha-card-background, var(--card-background-color, #fff));
     border-radius: 8px;
     font-size: 12px;
-    font-family:
-      -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto,
-      sans-serif;
+    font-family: var(
+      --ha-font-family-body,
+      -apple-system,
+      BlinkMacSystemFont,
+      'SF Pro Text',
+      'Segoe UI',
+      Roboto,
+      sans-serif
+    );
     pointer-events: none;
     z-index: 1000;
     white-space: nowrap;
