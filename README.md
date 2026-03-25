@@ -83,6 +83,7 @@ title: Activity
 | `backgroundColor` | string   | —            | Custom card background color                                       |
 | `levelCount`      | number   | `5`          | Number of intensity levels (2-10)                                  |
 | `levelThresholds` | number[] | —            | Custom percentage boundaries for levels (see below)                |
+| `colorThresholds` | array    | —            | Custom value-to-color mapping (see below). Overrides auto colors   |
 | `maxValue`        | number   | —            | Absolute ceiling for 100% intensity (values ≥ this show max color) |
 | `weekStartDay`    | string   | `monday`     | First day of week: `monday`, `mon`, `sunday`, or `sun`             |
 | `weekdayLabels`   | string   | `short`      | Weekday label display: `none`, `short`, `all`, or `letter`         |
@@ -144,7 +145,7 @@ If you see this message:
 
 #### Examples
 
-**Multi-Year Calendar View**
+##### Multi-Year Calendar View
 
 Display multiple calendar years stacked vertically:
 
@@ -159,7 +160,7 @@ range: year
 years: 2
 ```
 
-**Binary/Streak Tracking**
+##### Binary/Streak Tracking
 
 For simple yes/no tracking (did I do it today?), use `levelCount: 2`:
 
@@ -174,7 +175,7 @@ levelCount: 2
 baseColor: '#c6a0f6'
 ```
 
-**Custom Background**
+##### Custom Background
 
 ![Heatmap Custom Background](images/heatmap-custom-background.png)
 
@@ -187,13 +188,13 @@ baseColor: '#e91e8c'
 backgroundColor: '#fff5f8'
 ```
 
-**Dark Theme**
+##### Dark Theme
 
 Automatically adapts to Home Assistant's dark mode.
 
 ![Heatmap Dark Theme](images/heatmap-dark-theme.png)
 
-**More Granular Levels**
+##### More Granular Levels
 
 Increase intensity levels for more nuanced visualization:
 
@@ -205,7 +206,7 @@ title: Code Commits
 levelCount: 8
 ```
 
-**Custom Thresholds**
+##### Custom Thresholds
 
 Define custom percentage boundaries to control how values map to color intensity levels.
 
@@ -218,7 +219,7 @@ levelCount: 5
 levelThresholds: [20, 40, 60, 80]
 ```
 
-**How it works:**
+**How it works**
 
 - `levelCount` defines how many distinct colors you'll see (e.g., 5 levels = 5 colors)
 - `levelThresholds` defines the percentage boundaries between levels
@@ -241,7 +242,7 @@ The "range" depends on your `valueMode`:
 - **Default (`clamp_zero`)**: Range is 0 to max value. A value of 50 with max 100 = 50%
 - **Range mode**: Range is min to max. A value of 0 with min -10 and max 30 = 25%
 
-**Example: Skewed distribution**
+**Skewed distribution example**
 
 If most of your data is low values with occasional spikes, use lower thresholds:
 
@@ -249,7 +250,76 @@ If most of your data is low values with occasional spikes, use lower thresholds:
 levelThresholds: [5, 15, 35, 70] # More levels for lower values
 ```
 
-**Target-Based Intensity with maxValue**
+##### Custom Color Thresholds
+
+![Heatmap Color Thresholds](images/heatmap-color-thresholds.png)
+
+Define exact colors for specific value ranges using `colorThresholds`. Instead of auto-generating colors from a single base color, you specify the exact color to use at each value breakpoint.
+
+```yaml
+type: custom:zen-ui
+card: heatmap
+entity: sensor.temperature
+title: Office Temps
+colorThresholds:
+  - value: 65
+    color: '#6E1F60'
+  - value: 70
+    color: '#3085A8'
+  - value: 75
+    color: '#73bf69'
+  - value: 80
+    color: '#37872d'
+  - value: 90
+    color: '#ff9830'
+```
+
+**How it works**
+
+Each entry defines a breakpoint: "from this value onward, use this color." The color applies until the next threshold is reached. Values below the first threshold get the first color. Values above the last threshold get the last color.
+
+With the config above:
+
+```
+Sensor value       Color applied       Why
+─────────────────────────────────────────────────────
+    30          →  #6E1F60             Below first threshold (65), gets first color
+    65          →  #6E1F60             ≥ 65 and < 70
+    68          →  #6E1F60             ≥ 65 and < 70
+    70          →  #3085A8             ≥ 70 and < 75
+    74          →  #3085A8             ≥ 70 and < 75
+    75          →  #73bf69             ≥ 75 and < 80
+    80          →  #37872d             ≥ 80 and < 90
+    90          →  #ff9830             ≥ 90 (last threshold)
+    99          →  #ff9830             Above last threshold, gets last color
+```
+
+If you want a distinct color for "no data" or very low values, add a threshold at or near zero:
+
+```yaml
+colorThresholds:
+  - value: 0
+    color: '#ebedf0'
+  - value: 65
+    color: '#6E1F60'
+  - value: 75
+    color: '#73bf69'
+  - value: 90
+    color: '#ff9830'
+```
+
+**Relationship with `levelThresholds`**
+
+Both `colorThresholds` and `levelThresholds` control how values map to colors, but they work differently:
+
+- `levelThresholds` uses **percentage boundaries** with auto-generated colors from `baseColor`. You control _where_ the boundaries are, but the system picks the colors.
+- `colorThresholds` uses **absolute value breakpoints** with user-specified colors. You control both _where_ the boundaries are and _what_ colors to use.
+
+These two options are **mutually exclusive**. When `colorThresholds` is provided, the following options are ignored: `baseColor`, `levelCount`, `levelThresholds`, `negativeColor`, `positiveColor`, and `neutralValue`.
+
+Options that still apply with `colorThresholds`: `maxValue`, `valueMode`, `missingMode`, `backgroundColor`, `weekStartDay`, `weekdayLabels`, `show_legend`, and `unit`.
+
+##### Target-Based Intensity with maxValue
 
 By default, the darkest color represents your highest value in the dataset. With `maxValue`, you can set an absolute target that represents 100% intensity.
 
@@ -271,7 +341,7 @@ With `maxValue: 10000`:
 
 Without `maxValue`, if your actual max is 30,000 steps, then 10,000 would only show as 33% intensity, making it hard to see your goal achievement at a glance.
 
-**Week Starting on Sunday**
+##### Week Starting on Sunday
 
 ```yaml
 type: custom:zen-ui
@@ -281,7 +351,7 @@ title: Habit Tracker
 weekStartDay: sunday
 ```
 
-**Weekday Labels**
+##### Weekday Labels
 
 Control how weekday labels are displayed:
 
@@ -298,7 +368,7 @@ title: Habit Tracker
 weekdayLabels: letter # Single letters (M, T, W...)
 ```
 
-**Sparse Data with Transparent Missing Days**
+##### Sparse Data with Transparent Missing Days
 
 When your data is sparse and you want to distinguish between "no data" and "zero value":
 
@@ -314,7 +384,7 @@ missingMode: transparent
 
 With `missingMode: transparent`, days without any data appear transparent, while days with an explicit count of 0 still show the empty color. This is useful for sensors that don't report every day.
 
-**Range Mode for Positive/Negative Values**
+##### Range Mode for Positive/Negative Values
 
 For data that includes negative values (like energy balance, temperature delta, profit/loss):
 
@@ -328,7 +398,7 @@ valueMode: range
 
 With `valueMode: range`, levels are distributed across the full min..max range. Negative values get lower levels, positive values get higher levels, and zero falls somewhere in the middle based on your data distribution. Missing days automatically appear transparent since zero has meaning in range mode.
 
-**Diverging Colors**
+##### Diverging Colors
 
 For data with positive and negative values, use two colors that meet at a neutral point:
 
@@ -345,7 +415,7 @@ positiveColor: '#fab387'
 
 This creates a color gradient from blue (cold/negative) through neutral gray to orange (warm/positive). The legend shows actual min/max values (e.g., "-10" to "+8").
 
-**Diverging with Custom Neutral Point**
+##### Diverging with Custom Neutral Point
 
 By default, zero is the neutral point. For data centered around a different value (like scores around 50):
 
@@ -366,7 +436,7 @@ Values below 50 appear in maroon tones, values above 50 in teal tones.
 
 > **Note:** Diverging mode requires both `negativeColor` AND `positiveColor`. The `levelCount` is automatically adjusted to be odd (≥3) to ensure a clear center point.
 
-**HA Screenshot**
+##### HA Screenshot
 
 ![Heatmap HA Screenshot](images/heatmap-ha-screenshot.png)
 

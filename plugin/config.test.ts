@@ -287,6 +287,119 @@ describe('validateConfig', () => {
     })
   })
 
+  describe('colorThresholds validation', () => {
+    it('accepts valid colorThresholds with 2+ entries', () => {
+      const config = validateConfig(
+        validConfig({
+          colorThresholds: [
+            { value: 65, color: '#6E1F60' },
+            { value: 75, color: '#73bf69' },
+            { value: 90, color: '#ff9830' },
+          ],
+        }),
+      )
+      expect(config.colorThresholds).toEqual([
+        { value: 65, color: '#6E1F60' },
+        { value: 75, color: '#73bf69' },
+        { value: 90, color: '#ff9830' },
+      ])
+    })
+
+    it('auto-sorts by value ascending', () => {
+      const config = validateConfig(
+        validConfig({
+          colorThresholds: [
+            { value: 90, color: '#ff9830' },
+            { value: 65, color: '#6E1F60' },
+            { value: 75, color: '#73bf69' },
+          ],
+        }),
+      )
+      expect(config.colorThresholds).toEqual([
+        { value: 65, color: '#6E1F60' },
+        { value: 75, color: '#73bf69' },
+        { value: 90, color: '#ff9830' },
+      ])
+    })
+
+    it('ignores with fewer than 2 valid entries', () => {
+      const config = validateConfig(
+        validConfig({
+          colorThresholds: [{ value: 65, color: '#6E1F60' }],
+        }),
+      )
+      expect(config.colorThresholds).toBeUndefined()
+    })
+
+    it('ignores non-array input', () => {
+      const config = validateConfig(validConfig({ colorThresholds: 'invalid' }))
+      expect(config.colorThresholds).toBeUndefined()
+    })
+
+    it('filters out entries with invalid color', () => {
+      const config = validateConfig(
+        validConfig({
+          colorThresholds: [
+            { value: 65, color: 'not-hex' },
+            { value: 75, color: '#73bf69' },
+            { value: 90, color: '#ff9830' },
+          ],
+        }),
+      )
+      // First entry filtered, leaving 2 valid
+      expect(config.colorThresholds).toEqual([
+        { value: 75, color: '#73bf69' },
+        { value: 90, color: '#ff9830' },
+      ])
+    })
+
+    it('filters out entries with missing value', () => {
+      const config = validateConfig(
+        validConfig({
+          colorThresholds: [
+            { color: '#6E1F60' },
+            { value: 75, color: '#73bf69' },
+            { value: 90, color: '#ff9830' },
+          ],
+        }),
+      )
+      expect(config.colorThresholds).toEqual([
+        { value: 75, color: '#73bf69' },
+        { value: 90, color: '#ff9830' },
+      ])
+    })
+
+    it('overrides levelCount to match threshold count', () => {
+      const config = validateConfig(
+        validConfig({
+          levelCount: 5,
+          colorThresholds: [
+            { value: 65, color: '#6E1F60' },
+            { value: 75, color: '#73bf69' },
+            { value: 90, color: '#ff9830' },
+          ],
+        }),
+      )
+      expect(config.levelCount).toBe(3)
+    })
+
+    it('clears levelThresholds when colorThresholds is set', () => {
+      const config = validateConfig(
+        validConfig({
+          levelCount: 3,
+          levelThresholds: [33, 66],
+          colorThresholds: [
+            { value: 65, color: '#6E1F60' },
+            { value: 75, color: '#73bf69' },
+            { value: 90, color: '#ff9830' },
+          ],
+        }),
+      )
+      expect(config.levelThresholds).toBeUndefined()
+      expect(config.colorThresholds).toBeDefined()
+    })
+  })
+
   describe('optional fields passthrough', () => {
     it('passes through title', () => {
       expect(validateConfig(validConfig({ title: 'My Graph' })).title).toBe(

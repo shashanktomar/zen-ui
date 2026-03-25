@@ -24,6 +24,7 @@ export interface PipelineConfig {
   isDiverging?: boolean // If true, calculate neutralLevel for color generation
   neutralValue?: number // The neutral point value (default: 0 if in range, else midpoint)
   maxValue?: number // Absolute ceiling for 100% intensity (when set, values >= maxValue get max level)
+  colorThresholdValues?: number[] // Sorted absolute value breakpoints for colorThresholds mode
 }
 
 export interface ContributionData {
@@ -316,6 +317,27 @@ export function getLevelRange(
 }
 
 /**
+ * Maps a count value to a level based on absolute value thresholds.
+ * Used when colorThresholds config is provided.
+ *
+ * Each threshold means "from this value onward, use this color."
+ * Values below the first threshold get level 0 (first color).
+ * Values above the last threshold get the last level (last color).
+ *
+ * @param count - The raw sensor value
+ * @param thresholdValues - Sorted ascending array of threshold values
+ */
+export function getLevelFromColorThresholds(
+  count: number,
+  thresholdValues: number[],
+): number {
+  for (let i = thresholdValues.length - 1; i >= 0; i--) {
+    if (count >= thresholdValues[i]) return i
+  }
+  return 0
+}
+
+/**
  * Global min/max stats for consistent color scaling across multiple ranges.
  */
 export interface GlobalStats {
@@ -378,6 +400,7 @@ export function boundDataToRange(
   neutralValue?: number,
   globalStats?: GlobalStats,
   maxValue?: number,
+  colorThresholdValues?: number[],
 ): HeatmapData {
   // Build lookup map from normalized data
   const dataMap = new Map<string, number>()
@@ -430,7 +453,10 @@ export function boundDataToRange(
 
   for (const { date, count, hasData } of days) {
     let level: number
-    if (valueMode === 'range') {
+    if (colorThresholdValues) {
+      // Absolute value thresholds — bypass percentage-based mapping
+      level = getLevelFromColorThresholds(count, colorThresholdValues)
+    } else if (valueMode === 'range') {
       // For range mode, missing days don't get a meaningful level
       level = hasData
         ? getLevelRange(
@@ -509,6 +535,7 @@ export function processHeatmapData(
   const isDiverging = config.isDiverging
   const neutralValue = config.neutralValue
   const maxValue = config.maxValue
+  const colorThresholdValues = config.colorThresholdValues
 
   // Force range mode for diverging (diverging requires min/max range semantics)
   const valueMode = isDiverging ? 'range' : config.valueMode
@@ -530,6 +557,7 @@ export function processHeatmapData(
       neutralValue,
       globalStats,
       maxValue,
+      colorThresholdValues,
     ),
   )
 }
