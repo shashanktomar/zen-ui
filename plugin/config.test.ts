@@ -427,15 +427,15 @@ describe('validateConfig', () => {
     })
 
     it('passes through darkMode true', () => {
-      expect(
-        validateConfig(validConfig({ darkMode: true })).darkMode,
-      ).toBe(true)
+      expect(validateConfig(validConfig({ darkMode: true })).darkMode).toBe(
+        true,
+      )
     })
 
     it('passes through darkMode false', () => {
-      expect(
-        validateConfig(validConfig({ darkMode: false })).darkMode,
-      ).toBe(false)
+      expect(validateConfig(validConfig({ darkMode: false })).darkMode).toBe(
+        false,
+      )
     })
 
     it('defaults darkMode to undefined when omitted', () => {
