@@ -164,6 +164,18 @@ const MaxValueSchema = v.pipe(
   }),
 )
 
+// Schema for end_date (optional valid date string, falls back to undefined)
+const EndDateSchema = v.pipe(
+  v.unknown(),
+  v.transform((input): string | undefined => {
+    if (typeof input === 'string' && input.length > 0) {
+      const d = new Date(input)
+      if (!Number.isNaN(d.getTime())) return input
+    }
+    return undefined
+  }),
+)
+
 // Schema for grid_options (HA sections view)
 const GridOptionsSchema = v.optional(
   v.object({
@@ -191,7 +203,7 @@ const HeatmapConfigSchema = v.pipe(
     attribute: v.optional(v.string(), CONFIG_DEFAULTS.attribute),
     range: v.optional(RangeSchema, CONFIG_DEFAULTS.range),
     years: v.optional(YearsSchema, CONFIG_DEFAULTS.years),
-    end_date: v.optional(v.string()),
+    end_date: v.optional(EndDateSchema),
     weekStartDay: v.optional(WeekStartDaySchema, CONFIG_DEFAULTS.weekStartDay),
     weekdayLabels: v.optional(
       WeekdayLabelsSchema,

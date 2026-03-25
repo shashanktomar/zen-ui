@@ -295,10 +295,22 @@ describe('validateConfig', () => {
       expect(validateConfig(validConfig()).title).toBeUndefined()
     })
 
-    it('passes through end_date', () => {
+    it('passes through valid end_date', () => {
       expect(
         validateConfig(validConfig({ end_date: '2024-12-31' })).end_date,
       ).toBe('2024-12-31')
+    })
+
+    it('falls back to undefined for invalid end_date', () => {
+      expect(
+        validateConfig(validConfig({ end_date: 'not-a-date' })).end_date,
+      ).toBeUndefined()
+      expect(
+        validateConfig(validConfig({ end_date: '' })).end_date,
+      ).toBeUndefined()
+      expect(
+        validateConfig(validConfig({ end_date: 123 })).end_date,
+      ).toBeUndefined()
     })
   })
 })

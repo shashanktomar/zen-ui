@@ -67,7 +67,7 @@ export class ZenUI extends LitElement {
 
   private _darkModeMediaQuery?: MediaQueryList
   private _darkModeObserver?: MutationObserver
-  private _lastFetchedEntity?: string
+  private _lastFetchKey?: string
 
   static styles = [baseStyles, ...getAllCardStyles()]
 
@@ -101,6 +101,8 @@ export class ZenUI extends LitElement {
   updated(changedProps: Map<string, unknown>): void {
     if (changedProps.has('hass')) {
       this._updateDarkMode()
+    }
+    if (changedProps.has('hass') || changedProps.has('_config')) {
       this._fetchHistoryIfNeeded()
     }
   }
@@ -169,13 +171,18 @@ export class ZenUI extends LitElement {
     return false
   }
 
+  private _getFetchKey(): string {
+    const c = this._config!
+    return `${c.entity}|${c.range}|${c.years}|${c.end_date ?? ''}`
+  }
+
   private _fetchHistoryIfNeeded(): void {
     if (!this._config?.entity || !this.hass) return
 
-    // Only fetch if entity changed
-    if (this._lastFetchedEntity === this._config.entity) return
+    const key = this._getFetchKey()
+    if (this._lastFetchKey === key) return
 
-    this._lastFetchedEntity = this._config.entity
+    this._lastFetchKey = key
     this._fetchStatistics()
   }
 
