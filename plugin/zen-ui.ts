@@ -51,7 +51,7 @@ window.customCards.push({
   name: 'Zen UI',
   description: 'GitHub-style contribution heatmap for tracking daily metrics',
   preview: true,
-  documentationURL: 'https://github.com/stormari/zen-ui',
+  documentationURL: 'https://github.com/shashanktomar/zen-ui',
 })
 
 @customElement('zen-ui')
