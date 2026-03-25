@@ -32,3 +32,6 @@ Thumbs.db
 
 # Vite
 .vite/
+
+# Git worktrees
+.worktrees/

@@ -331,6 +331,12 @@ export class ZenUI extends LitElement {
    */
   private _getEffectiveLevelCount(): number {
     const config = this._config!
+
+    // colorThresholds: levelCount = number of thresholds (set by config validation)
+    if (config.colorThresholds) {
+      return config.colorThresholds.length
+    }
+
     let levelCount = config.levelCount ?? 5
 
     if (this._isDiverging()) {
@@ -381,12 +387,18 @@ export class ZenUI extends LitElement {
       isDiverging,
       neutralValue: config.neutralValue,
       maxValue: config.maxValue,
+      colorThresholdValues: config.colorThresholds?.map((t) => t.value),
     }
   }
 
   private _getColorScale(neutralLevel?: number): string[] {
     const config = this._config!
     const effectiveLevelCount = this._getEffectiveLevelCount()
+
+    // colorThresholds: use user-specified colors directly
+    if (config.colorThresholds) {
+      return config.colorThresholds.map((t) => t.color)
+    }
 
     if (this._isDiverging()) {
       return generateDivergingColorScale(

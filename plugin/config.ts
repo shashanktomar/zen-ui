@@ -24,6 +24,12 @@ export type MissingMode = 'zero' | 'transparent'
 // Value mode type
 export type ValueMode = 'clamp_zero' | 'range'
 
+// Color threshold type
+export interface ColorThreshold {
+  value: number
+  color: string
+}
+
 // Default values
 export const CONFIG_DEFAULTS = {
   range: 'rolling' as const,
@@ -176,6 +182,34 @@ const EndDateSchema = v.pipe(
   }),
 )
 
+// Schema for colorThresholds (array of {value, color} pairs, minimum 2)
+const ColorThresholdsSchema = v.pipe(
+  v.unknown(),
+  v.transform((input): ColorThreshold[] | undefined => {
+    if (!Array.isArray(input) || input.length < 2) return undefined
+
+    const valid: ColorThreshold[] = []
+    for (const entry of input) {
+      if (
+        entry &&
+        typeof entry === 'object' &&
+        typeof entry.value === 'number' &&
+        Number.isFinite(entry.value) &&
+        typeof entry.color === 'string' &&
+        HEX_COLOR_REGEX.test(entry.color)
+      ) {
+        valid.push({ value: entry.value, color: entry.color })
+      }
+    }
+
+    if (valid.length < 2) return undefined
+
+    // Sort by value ascending
+    valid.sort((a, b) => a.value - b.value)
+    return valid
+  }),
+)
+
 // Schema for grid_options (HA sections view)
 const GridOptionsSchema = v.optional(
   v.object({
@@ -225,10 +259,22 @@ const HeatmapConfigSchema = v.pipe(
     // Absolute max value for 100% intensity
     maxValue: v.optional(MaxValueSchema),
 
+    // Custom color thresholds (overrides auto color generation)
+    colorThresholds: v.optional(ColorThresholdsSchema),
+
     grid_options: GridOptionsSchema,
   }),
-  // Cross-field validation for levelThresholds
+  // Cross-field validation
   v.transform((config) => {
+    // colorThresholds takes precedence — clear conflicting options
+    if (config.colorThresholds) {
+      return {
+        ...config,
+        levelThresholds: undefined,
+        levelCount: config.colorThresholds.length,
+      }
+    }
+
     if (config.levelThresholds) {
       const expectedLength = config.levelCount - 1
       if (config.levelThresholds.length !== expectedLength) {

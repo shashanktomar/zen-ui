@@ -203,6 +203,12 @@
       <div class="config-display" id="config-maxvalue"></div>
     </div>
 
+    <div class="demo-container">
+      <div class="demo-label">Custom Color Thresholds</div>
+      <zen-ui id="card-color-thresholds"></zen-ui>
+      <div class="config-display" id="config-color-thresholds"></div>
+    </div>
+
     <script type="module">
       import '../plugin/zen-ui.ts'
 
@@ -217,6 +223,9 @@
         'card-diverging-custom',
       )
       const cardMaxValue = document.getElementById('card-maxvalue')
+      const cardColorThresholds = document.getElementById(
+        'card-color-thresholds',
+      )
       const configRolling = document.getElementById('config-rolling')
       const configMultiyear = document.getElementById('config-multiyear')
       const configBinary = document.getElementById('config-binary')
@@ -228,6 +237,9 @@
         'config-diverging-custom',
       )
       const configMaxValue = document.getElementById('config-maxvalue')
+      const configColorThresholds = document.getElementById(
+        'config-color-thresholds',
+      )
       const themeBtn = document.getElementById('theme-toggle')
       const regenBtn = document.getElementById('regen-data')
       const localeSelect = document.getElementById('locale-select')
@@ -281,6 +293,13 @@
             attributes: {
               data: [],
               unit_of_measurement: 'steps',
+            },
+          },
+          'sensor.temperature': {
+            state: 'on',
+            attributes: {
+              data: [],
+              unit_of_measurement: '°F',
             },
           },
         },
@@ -470,6 +489,27 @@
         return data
       }
 
+      function generateTemperatureData() {
+        const data = []
+        const today = new Date()
+        const start = new Date(
+          today.getFullYear() - 1,
+          today.getMonth(),
+          today.getDate(),
+        )
+        const end = new Date(today)
+
+        const itr = new Date(start)
+        while (itr <= end) {
+          const dateStr = itr.toISOString().split('T')[0]
+          // Office temperature: 60-95°F range
+          const count = Math.floor(Math.random() * 35) + 60
+          data.push({ date: dateStr, count })
+          itr.setDate(itr.getDate() + 1)
+        }
+        return data
+      }
+
       function updateAllCards() {
         const hass = { ...mockHass }
         cardRolling.hass = hass
@@ -481,6 +521,7 @@
         cardDiverging.hass = hass
         cardDivergingCustom.hass = hass
         cardMaxValue.hass = hass
+        cardColorThresholds.hass = hass
       }
 
       // Initial configs
@@ -556,11 +597,38 @@
         baseColor: '#f97316',
       }
 
+      const colorThresholdsConfig = {
+        card: 'heatmap',
+        entity: 'sensor.temperature',
+        title: 'Office Temps',
+        colorThresholds: [
+          { value: 65, color: '#89b4fa' }, // Blue (cold)
+          { value: 70, color: '#94e2d5' }, // Teal
+          { value: 75, color: '#a6e3a1' }, // Green
+          { value: 80, color: '#f9e2af' }, // Yellow
+          { value: 90, color: '#fab387' }, // Peach (hot)
+        ],
+      }
+
       // Convert config to YAML format
       function toYaml(config) {
         let yaml = 'type: custom:zen-ui\n'
         for (const [key, value] of Object.entries(config)) {
-          yaml += `${key}: ${value}\n`
+          if (Array.isArray(value)) {
+            yaml += `${key}:\n`
+            for (const item of value) {
+              if (typeof item === 'object') {
+                const parts = Object.entries(item)
+                  .map(([k, v]) => `${k}: ${v}`)
+                  .join(', ')
+                yaml += `  - ${parts}\n`
+              } else {
+                yaml += `  - ${item}\n`
+              }
+            }
+          } else {
+            yaml += `${key}: ${value}\n`
+          }
         }
         return yaml.trim()
       }
@@ -575,6 +643,7 @@
       configDiverging.textContent = toYaml(divergingConfig)
       configDivergingCustom.textContent = toYaml(divergingCustomConfig)
       configMaxValue.textContent = toYaml(maxValueConfig)
+      configColorThresholds.textContent = toYaml(colorThresholdsConfig)
 
       // Initialize configs
       cardRolling.setConfig(rollingConfig)
@@ -586,6 +655,7 @@
       cardDiverging.setConfig(divergingConfig)
       cardDivergingCustom.setConfig(divergingCustomConfig)
       cardMaxValue.setConfig(maxValueConfig)
+      cardColorThresholds.setConfig(colorThresholdsConfig)
 
       // Sync mockHass with selector values (browser may restore them on refresh)
       mockHass.locale.language = localeSelect.value
@@ -600,6 +670,8 @@
         generateTemperatureDeltaData()
       mockHass.states['sensor.score'].attributes.data = generateScoreData()
       mockHass.states['sensor.steps'].attributes.data = generateStepsData()
+      mockHass.states['sensor.temperature'].attributes.data =
+        generateTemperatureData()
       updateAllCards()
 
       // Event Listeners
@@ -614,6 +686,8 @@
           generateTemperatureDeltaData()
         mockHass.states['sensor.score'].attributes.data = generateScoreData()
         mockHass.states['sensor.steps'].attributes.data = generateStepsData()
+        mockHass.states['sensor.temperature'].attributes.data =
+          generateTemperatureData()
         updateAllCards()
       })
 
@@ -638,6 +712,7 @@
         divergingConfig.weekdayLabels = value
         divergingCustomConfig.weekdayLabels = value
         maxValueConfig.weekdayLabels = value
+        colorThresholdsConfig.weekdayLabels = value
         // Re-set all cards
         cardRolling.setConfig({ ...rollingConfig })
         cardMultiyear.setConfig({ ...multiyearConfig })
@@ -648,6 +723,7 @@
         cardDiverging.setConfig({ ...divergingConfig })
         cardDivergingCustom.setConfig({ ...divergingCustomConfig })
         cardMaxValue.setConfig({ ...maxValueConfig })
+        cardColorThresholds.setConfig({ ...colorThresholdsConfig })
         // Update displayed configs
         configRolling.textContent = toYaml(rollingConfig)
         configMultiyear.textContent = toYaml(multiyearConfig)
@@ -658,6 +734,7 @@
         configDiverging.textContent = toYaml(divergingConfig)
         configDivergingCustom.textContent = toYaml(divergingCustomConfig)
         configMaxValue.textContent = toYaml(maxValueConfig)
+        configColorThresholds.textContent = toYaml(colorThresholdsConfig)
       })
     </script>
   </body>

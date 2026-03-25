@@ -4,6 +4,7 @@ import {
   calculateDateRanges,
   getLevel,
   getLevelRange,
+  getLevelFromColorThresholds,
   calculateEvenThresholds,
   calculateNeutralLevel,
   boundDataToRange,
@@ -675,6 +676,50 @@ describe('getLevelRange', () => {
       // minValue=0, maxValue=10, count=-5 is below, should cap at level 0
       expect(getLevelRange(-5, -10, 100, 5, undefined, 10, 0)).toBe(0)
     })
+  })
+})
+
+describe('getLevelFromColorThresholds', () => {
+  const thresholds = [65, 75, 90]
+
+  it('returns 0 for values below first threshold', () => {
+    expect(getLevelFromColorThresholds(0, thresholds)).toBe(0)
+    expect(getLevelFromColorThresholds(30, thresholds)).toBe(0)
+    expect(getLevelFromColorThresholds(64, thresholds)).toBe(0)
+  })
+
+  it('returns 0 for value at first threshold', () => {
+    expect(getLevelFromColorThresholds(65, thresholds)).toBe(0)
+  })
+
+  it('returns correct level for values between thresholds', () => {
+    // 70 is ≥ 65 (level 0) but < 75 (level 1)
+    expect(getLevelFromColorThresholds(70, thresholds)).toBe(0)
+    expect(getLevelFromColorThresholds(74, thresholds)).toBe(0)
+    // 75 is ≥ 75 (level 1)
+    expect(getLevelFromColorThresholds(75, thresholds)).toBe(1)
+    expect(getLevelFromColorThresholds(80, thresholds)).toBe(1)
+    expect(getLevelFromColorThresholds(89, thresholds)).toBe(1)
+  })
+
+  it('returns last level for value at last threshold', () => {
+    expect(getLevelFromColorThresholds(90, thresholds)).toBe(2)
+  })
+
+  it('returns last level for values above last threshold', () => {
+    expect(getLevelFromColorThresholds(95, thresholds)).toBe(2)
+    expect(getLevelFromColorThresholds(100, thresholds)).toBe(2)
+  })
+
+  it('handles negative thresholds', () => {
+    const negThresholds = [-10, 0, 10]
+    expect(getLevelFromColorThresholds(-20, negThresholds)).toBe(0)
+    expect(getLevelFromColorThresholds(-10, negThresholds)).toBe(0)
+    expect(getLevelFromColorThresholds(-5, negThresholds)).toBe(0)
+    expect(getLevelFromColorThresholds(0, negThresholds)).toBe(1)
+    expect(getLevelFromColorThresholds(5, negThresholds)).toBe(1)
+    expect(getLevelFromColorThresholds(10, negThresholds)).toBe(2)
+    expect(getLevelFromColorThresholds(15, negThresholds)).toBe(2)
   })
 })
 
