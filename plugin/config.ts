@@ -262,6 +262,16 @@ const HeatmapConfigSchema = v.pipe(
     // Custom color thresholds (overrides auto color generation)
     colorThresholds: v.optional(ColorThresholdsSchema),
 
+    // Override dark mode detection (auto-detect if omitted)
+    darkMode: v.optional(
+      v.pipe(
+        v.unknown(),
+        v.transform((input) =>
+          typeof input === 'boolean' ? input : undefined,
+        ),
+      ),
+    ),
+
     grid_options: GridOptionsSchema,
   }),
   // Cross-field validation

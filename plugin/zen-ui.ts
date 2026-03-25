@@ -99,7 +99,7 @@ export class ZenUI extends LitElement {
   }
 
   updated(changedProps: Map<string, unknown>): void {
-    if (changedProps.has('hass')) {
+    if (changedProps.has('hass') || changedProps.has('_config')) {
       this._updateDarkMode()
     }
     if (changedProps.has('hass') || changedProps.has('_config')) {
@@ -154,9 +154,18 @@ export class ZenUI extends LitElement {
   }
 
   private _detectDarkMode(): boolean {
-    // Check Home Assistant theme (preferred method)
+    // Config override takes highest priority
+    if (this._config?.darkMode !== undefined) {
+      return this._config.darkMode
+    }
+    // Check Home Assistant theme API
     if (this.hass?.themes?.darkMode !== undefined) {
       return this.hass.themes.darkMode
+    }
+    // Check HA's color-scheme meta tag (set by themes-mixin, works with single-mode themes)
+    const meta = document.querySelector('meta[name=color-scheme]')
+    if (meta) {
+      return meta.getAttribute('content')?.includes('dark') ?? false
     }
     // Check for .dark class on body or html (for demo/preview pages)
     if (
@@ -165,10 +174,8 @@ export class ZenUI extends LitElement {
     ) {
       return true
     }
-    // If no HA theme and no .dark class, default to light mode
-    // This ensures demo/preview pages start in light mode
-    // regardless of system preference
-    return false
+    // Fallback: respect system preference
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
   }
 
   private _getFetchKey(): string {

@@ -91,6 +91,7 @@ title: Activity
 | `missingMode`     | string   | `zero`       | `zero` (missing = 0) or `transparent` (missing days are distinct)  |
 | `show_legend`     | boolean  | `true`       | Show the Less/More legend                                          |
 | `unit`            | string   | —            | Unit to display in tooltip (auto-detects from entity if not set)   |
+| `darkMode`        | boolean  | auto         | Force dark (`true`) or light (`false`) mode. Auto-detects if omitted |
 
 > **Note:** When using `valueMode: range` or diverging colors, `missingMode` is automatically set to `transparent` because zero has meaning within the range.
 
@@ -193,6 +194,15 @@ backgroundColor: '#fff5f8'
 Automatically adapts to Home Assistant's dark mode.
 
 ![Heatmap Dark Theme](images/heatmap-dark-theme.png)
+
+If auto-detection doesn't work with your theme (e.g., single-mode custom themes like [Catppuccin](https://github.com/catppuccin/home-assistant)), you can force it:
+
+```yaml
+type: custom:zen-ui
+card: heatmap
+entity: sensor.your_sensor
+darkMode: true
+```
 
 ##### More Granular Levels
 
