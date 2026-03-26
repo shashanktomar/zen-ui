@@ -34,6 +34,7 @@ export interface ColorThreshold {
 export const CONFIG_DEFAULTS = {
   range: 'rolling' as const,
   years: 1,
+  days: 364,
   weekStartDay: 'monday' as WeekStartDay,
   weekdayLabels: 'short' as WeekdayLabelsMode,
   levelCount: 5,
@@ -89,6 +90,22 @@ const YearsSchema = v.pipe(
       return input
     }
     return CONFIG_DEFAULTS.years
+  }),
+)
+
+// Schema for days (integer 7-365, only applies to rolling mode)
+const DaysSchema = v.pipe(
+  v.unknown(),
+  v.transform((input) => {
+    if (
+      typeof input === 'number' &&
+      Number.isInteger(input) &&
+      input >= 7 &&
+      input <= 365
+    ) {
+      return input
+    }
+    return CONFIG_DEFAULTS.days
   }),
 )
 
@@ -237,6 +254,7 @@ const HeatmapConfigSchema = v.pipe(
     attribute: v.optional(v.string(), CONFIG_DEFAULTS.attribute),
     range: v.optional(RangeSchema, CONFIG_DEFAULTS.range),
     years: v.optional(YearsSchema, CONFIG_DEFAULTS.years),
+    days: v.optional(DaysSchema, CONFIG_DEFAULTS.days),
     end_date: v.optional(EndDateSchema),
     weekStartDay: v.optional(WeekStartDaySchema, CONFIG_DEFAULTS.weekStartDay),
     weekdayLabels: v.optional(

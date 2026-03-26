@@ -14,7 +14,10 @@ export const heatmapCard: CardRenderer = {
   styles: heatmapStyles,
 
   getCardSize(config) {
-    return config.range === 'year' ? 3 * (config.years ?? 1) : 3
+    if (config.range === 'year') return 3 * (config.years ?? 1)
+    const days = config.days ?? 364
+    if (days <= 30) return 2
+    return 3
   },
 
   render(context: CardRenderContext) {

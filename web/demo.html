@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
     <title>Zen UI Demo</title>
     <style>
       body {
@@ -65,6 +66,20 @@
         background-color: #21262d;
         border-color: #30363d;
         color: #c9d1d9;
+      }
+
+      .demo-row {
+        display: flex;
+        gap: 20px;
+        width: 100%;
+        max-width: 850px;
+        margin-bottom: 30px;
+      }
+
+      .demo-row .demo-container {
+        flex: 1;
+        min-width: 0;
+        margin-bottom: 0;
       }
 
       .demo-container {
@@ -209,10 +224,33 @@
       <div class="config-display" id="config-color-thresholds"></div>
     </div>
 
+    <div class="demo-row">
+      <div class="demo-container">
+        <div class="demo-label">Rolling - 7 days</div>
+        <zen-ui id="card-days7"></zen-ui>
+        <div class="config-display" id="config-days7"></div>
+      </div>
+
+      <div class="demo-container">
+        <div class="demo-label">Rolling - 30 days</div>
+        <zen-ui id="card-days30"></zen-ui>
+        <div class="config-display" id="config-days30"></div>
+      </div>
+
+      <div class="demo-container">
+        <div class="demo-label">Rolling - 90 days</div>
+        <zen-ui id="card-days90"></zen-ui>
+        <div class="config-display" id="config-days90"></div>
+      </div>
+    </div>
+
     <script type="module">
       import '../plugin/zen-ui.ts'
 
       const cardRolling = document.getElementById('card-rolling')
+      const cardDays7 = document.getElementById('card-days7')
+      const cardDays30 = document.getElementById('card-days30')
+      const cardDays90 = document.getElementById('card-days90')
       const cardMultiyear = document.getElementById('card-multiyear')
       const cardBinary = document.getElementById('card-binary')
       const cardThemed = document.getElementById('card-themed')
@@ -227,6 +265,9 @@
         'card-color-thresholds',
       )
       const configRolling = document.getElementById('config-rolling')
+      const configDays7 = document.getElementById('config-days7')
+      const configDays30 = document.getElementById('config-days30')
+      const configDays90 = document.getElementById('config-days90')
       const configMultiyear = document.getElementById('config-multiyear')
       const configBinary = document.getElementById('config-binary')
       const configThemed = document.getElementById('config-themed')
@@ -513,6 +554,9 @@
       function updateAllCards() {
         const hass = { ...mockHass }
         cardRolling.hass = hass
+        cardDays7.hass = hass
+        cardDays30.hass = hass
+        cardDays90.hass = hass
         cardMultiyear.hass = hass
         cardBinary.hass = hass
         cardThemed.hass = hass
@@ -529,6 +573,27 @@
         card: 'heatmap',
         entity: 'sensor.activity',
         title: 'Activity',
+      }
+
+      const days7Config = {
+        card: 'heatmap',
+        entity: 'sensor.activity',
+        title: 'Last Week',
+        days: 7,
+      }
+
+      const days30Config = {
+        card: 'heatmap',
+        entity: 'sensor.activity',
+        title: 'Last Month',
+        days: 30,
+      }
+
+      const days90Config = {
+        card: 'heatmap',
+        entity: 'sensor.activity',
+        title: 'Last 3 Months',
+        days: 90,
       }
 
       const multiyearConfig = {
@@ -635,6 +700,9 @@
 
       // Display configs
       configRolling.textContent = toYaml(rollingConfig)
+      configDays7.textContent = toYaml(days7Config)
+      configDays30.textContent = toYaml(days30Config)
+      configDays90.textContent = toYaml(days90Config)
       configMultiyear.textContent = toYaml(multiyearConfig)
       configBinary.textContent = toYaml(binaryConfig)
       configThemed.textContent = toYaml(themedConfig)
@@ -647,6 +715,9 @@
 
       // Initialize configs
       cardRolling.setConfig(rollingConfig)
+      cardDays7.setConfig(days7Config)
+      cardDays30.setConfig(days30Config)
+      cardDays90.setConfig(days90Config)
       cardMultiyear.setConfig(multiyearConfig)
       cardBinary.setConfig(binaryConfig)
       cardThemed.setConfig(themedConfig)
@@ -693,6 +764,10 @@
 
       themeBtn.addEventListener('click', () => {
         document.body.classList.toggle('dark')
+        const isDark = document.body.classList.contains('dark')
+        document
+          .querySelector('meta[name=color-scheme]')
+          .setAttribute('content', isDark ? 'dark' : 'light')
       })
 
       localeSelect.addEventListener('change', (e) => {
@@ -704,6 +779,9 @@
         const value = e.target.value
         // Update all configs
         rollingConfig.weekdayLabels = value
+        days7Config.weekdayLabels = value
+        days30Config.weekdayLabels = value
+        days90Config.weekdayLabels = value
         multiyearConfig.weekdayLabels = value
         binaryConfig.weekdayLabels = value
         themedConfig.weekdayLabels = value
@@ -715,6 +793,9 @@
         colorThresholdsConfig.weekdayLabels = value
         // Re-set all cards
         cardRolling.setConfig({ ...rollingConfig })
+        cardDays7.setConfig({ ...days7Config })
+        cardDays30.setConfig({ ...days30Config })
+        cardDays90.setConfig({ ...days90Config })
         cardMultiyear.setConfig({ ...multiyearConfig })
         cardBinary.setConfig({ ...binaryConfig })
         cardThemed.setConfig({ ...themedConfig })
@@ -726,6 +807,9 @@
         cardColorThresholds.setConfig({ ...colorThresholdsConfig })
         // Update displayed configs
         configRolling.textContent = toYaml(rollingConfig)
+        configDays7.textContent = toYaml(days7Config)
+        configDays30.textContent = toYaml(days30Config)
+        configDays90.textContent = toYaml(days90Config)
         configMultiyear.textContent = toYaml(multiyearConfig)
         configBinary.textContent = toYaml(binaryConfig)
         configThemed.textContent = toYaml(themedConfig)

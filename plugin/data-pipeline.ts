@@ -14,6 +14,7 @@ import { isYmdDate, toLocalDateString } from './shared/date'
 export interface PipelineConfig {
   mode: 'rolling' | 'fixed'
   years?: number // For fixed mode: how many years (default 1)
+  days?: number // For rolling mode: how many days back (default 364)
   targetYear?: number // For fixed mode: which year to end on (default current year)
   weekStartDay?: 0 | 1 // 0 = Sunday, 1 = Monday (default: 1)
   levelCount?: number // Number of color intensity levels 2-10 (default: 5)
@@ -182,9 +183,10 @@ export function calculateDateRanges(
   const todayMidnight = toMidnight(today)
 
   if (config.mode === 'rolling') {
-    // Rolling: 52 weeks (364 days) back from today
+    // Rolling: configurable days back from today (default 364 = 52 weeks)
     const endDate = todayMidnight
-    let startDate = addDays(endDate, -364)
+    const days = config.days ?? 364
+    let startDate = addDays(endDate, -days)
 
     // Adjust startDate back to weekStart day on or before that date
     const startDow = getDayOfWeek(startDate)

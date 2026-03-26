@@ -107,6 +107,36 @@ describe('validateConfig', () => {
     })
   })
 
+  describe('days validation', () => {
+    it('accepts valid days', () => {
+      expect(validateConfig(validConfig({ days: 7 })).days).toBe(7)
+      expect(validateConfig(validConfig({ days: 30 })).days).toBe(30)
+      expect(validateConfig(validConfig({ days: 90 })).days).toBe(90)
+      expect(validateConfig(validConfig({ days: 365 })).days).toBe(365)
+    })
+
+    it('falls back to default for days below minimum', () => {
+      expect(validateConfig(validConfig({ days: 3 })).days).toBe(364)
+      expect(validateConfig(validConfig({ days: 6 })).days).toBe(364)
+      expect(validateConfig(validConfig({ days: 0 })).days).toBe(364)
+      expect(validateConfig(validConfig({ days: -1 })).days).toBe(364)
+    })
+
+    it('falls back to default for days above maximum', () => {
+      expect(validateConfig(validConfig({ days: 366 })).days).toBe(364)
+      expect(validateConfig(validConfig({ days: 500 })).days).toBe(364)
+    })
+
+    it('falls back to default for invalid types', () => {
+      expect(validateConfig(validConfig({ days: 1.5 })).days).toBe(364)
+      expect(validateConfig(validConfig({ days: 'thirty' })).days).toBe(364)
+    })
+
+    it('defaults to 364 when omitted', () => {
+      expect(validateConfig(validConfig({})).days).toBe(364)
+    })
+  })
+
   describe('weekStartDay validation', () => {
     it('accepts string values (case-insensitive)', () => {
       expect(

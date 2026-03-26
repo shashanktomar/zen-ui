@@ -138,7 +138,12 @@ export function renderYearGraph(
   return html`
     <div class="year-graph">
       ${showYearLabel ? html`<div class="year-label">${yearLabel}</div>` : ''}
-      <svg viewBox="0 0 ${X_START + width + 5} ${Y_START + height + 2}">
+      <svg
+        viewBox="0 0 ${X_START + width + 5} ${Y_START + height + 2}"
+        style="${heatmapData.weeks.length < 52
+          ? `max-width: ${X_START + width + 5}px;`
+          : ''}"
+      >
         <g transform="translate(${X_START}, ${Y_START})">
           ${labels}
           ${calculateGridPositions(heatmapData.weeks.flat(), weekStart).map(
