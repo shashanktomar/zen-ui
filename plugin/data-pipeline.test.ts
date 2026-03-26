@@ -252,6 +252,44 @@ describe('calculateDateRanges', () => {
       today: date(2024, 3, 15), // March 15
       expected: [{ start: '2024-01-01', end: '2024-12-31', label: '2024' }],
     },
+
+    // Rolling mode with custom days
+    {
+      name: 'rolling, days=7, Monday start, today=Sat 2024-06-15',
+      config: { mode: 'rolling', days: 7 },
+      today: date(2024, 6, 15), // Saturday
+      expected: [{ start: '2024-06-03', end: '2024-06-15' }], // Mon (aligned) to today
+    },
+    {
+      name: 'rolling, days=30, Monday start, today=Sat 2024-06-15',
+      config: { mode: 'rolling', days: 30 },
+      today: date(2024, 6, 15), // Saturday
+      expected: [{ start: '2024-05-13', end: '2024-06-15' }], // Mon (aligned) to today
+    },
+    {
+      name: 'rolling, days=90, Monday start, today=Sat 2024-06-15',
+      config: { mode: 'rolling', days: 90 },
+      today: date(2024, 6, 15), // Saturday
+      expected: [{ start: '2024-03-11', end: '2024-06-15' }], // Mon (aligned) to today
+    },
+    {
+      name: 'rolling, days=364 matches default rolling behavior',
+      config: { mode: 'rolling', days: 364 },
+      today: date(2024, 6, 15), // Saturday
+      expected: [{ start: '2023-06-12', end: '2024-06-15' }],
+    },
+    {
+      name: 'rolling, days=7, Sunday start',
+      config: { mode: 'rolling', days: 7, weekStartDay: 0 },
+      today: date(2024, 6, 15), // Saturday
+      expected: [{ start: '2024-06-02', end: '2024-06-15' }], // Sun (aligned) to today
+    },
+    {
+      name: 'rolling, days ignored in fixed mode',
+      config: { mode: 'fixed', years: 1, days: 30 },
+      today: date(2024, 6, 15),
+      expected: [{ start: '2024-01-01', end: '2024-12-31', label: '2024' }],
+    },
   ]
 
   it.each(testCases)('$name', ({ config, today, expected }) => {

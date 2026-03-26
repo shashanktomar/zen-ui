@@ -74,7 +74,8 @@ title: Activity
 | `card`            | string   | **Required** | Card type: `heatmap`                                                 |
 | `title`           | string   | —            | Card title displayed at the top                                      |
 | `attribute`       | string   | `data`       | Entity attribute containing the data array                           |
-| `range`           | string   | `rolling`    | `rolling` (last 365 days) or `year` (calendar years)                 |
+| `range`           | string   | `rolling`    | `rolling` (last 364 days) or `year` (calendar years)                 |
+| `days`            | number   | `364`        | Number of days in rolling window (7-365). Only applies to `rolling`  |
 | `years`           | number   | `1`          | Number of years to display (only for `range: year`)                  |
 | `baseColor`       | string   | `#40c463`    | Base color for the heatmap (hex format)                              |
 | `negativeColor`   | string   | —            | Color for negative values (hex). Requires `positiveColor`            |
@@ -160,6 +161,29 @@ title: Workout History
 range: year
 years: 2
 ```
+
+##### Custom Rolling Duration
+
+Show a shorter rolling window instead of the default full year. Useful for quick-glance views of recent data:
+
+![Heatmap Custom Days](images/heatmap-custom-days.png)
+
+```yaml
+type: custom:zen-ui
+card: heatmap
+entity: sensor.temperature
+title: Last 30 Days
+days: 30
+```
+
+The `days` option accepts any value from 7 to 365. Some useful examples:
+
+- `days: 7` — last week
+- `days: 30` — last month
+- `days: 90` — last 3 months
+- `days: 180` — last 6 months
+
+> **Note:** `days` only applies when `range` is `rolling` (the default). It is ignored in `year` mode.
 
 ##### Binary/Streak Tracking
 

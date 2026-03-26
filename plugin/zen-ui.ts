@@ -180,7 +180,7 @@ export class ZenUI extends LitElement {
 
   private _getFetchKey(): string {
     const c = this._config!
-    return `${c.entity}|${c.range}|${c.years}|${c.end_date ?? ''}`
+    return `${c.entity}|${c.range}|${c.years}|${c.days}|${c.end_date ?? ''}`
   }
 
   private _fetchHistoryIfNeeded(): void {
@@ -384,6 +384,7 @@ export class ZenUI extends LitElement {
     return {
       mode: config.range === 'year' ? 'fixed' : 'rolling',
       years: config.years,
+      days: config.days,
       targetYear: today.getFullYear(),
       weekStartDay: weekStartDayToNumber(config.weekStartDay),
       levelCount: effectiveLevelCount,
