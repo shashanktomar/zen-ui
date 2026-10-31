@@ -207,6 +207,8 @@ export interface LegendOptions {
   isDiverging?: boolean
   minValue?: number
   maxValue?: number
+  minClipped?: boolean // Values exist below minValue (percentile scaling): prefix "≤"
+  maxClipped?: boolean // Values exist above maxValue (percentile scaling): prefix "≥"
 }
 
 /**
@@ -230,7 +232,8 @@ export function renderLegend(
   locale: string,
   options?: LegendOptions,
 ): TemplateResult {
-  const { isDiverging, minValue, maxValue } = options ?? {}
+  const { isDiverging, minValue, maxValue, minClipped, maxClipped } =
+    options ?? {}
 
   const legendItems = colorScale.map((color) => {
     const style =
@@ -249,11 +252,11 @@ export function renderLegend(
 
   const minLabel =
     isDiverging && hasValidRange
-      ? formatDivergingValue(minValue, locale)
+      ? `${minClipped ? '≤ ' : ''}${formatDivergingValue(minValue, locale)}`
       : t('less', locale)
   const maxLabel =
     isDiverging && hasValidRange
-      ? formatDivergingValue(maxValue, locale)
+      ? `${maxClipped ? '≥ ' : ''}${formatDivergingValue(maxValue, locale)}`
       : t('more', locale)
 
   return html`

@@ -27,6 +27,12 @@ export interface PipelineConfig {
   maxValue?: number // Absolute ceiling for 100% intensity (when set, values >= maxValue get max level)
   colorThresholdValues?: number[] // Sorted absolute value breakpoints for colorThresholds mode
   divergingScale?: 'linear' | 'split' // Diverging level mapping (default: linear)
+  scalePercentile?: number // Scale levels to this percentile instead of min/max (50-100)
+}
+
+export interface ScaleBounds {
+  min: number
+  max: number
 }
 
 export interface ContributionData {
@@ -53,6 +59,7 @@ export interface HeatmapData {
   maxCount: number
   minCount?: number // Only set when valueMode: 'range' or diverging
   neutralLevel?: number // Only set when isDiverging: true
+  scaleBounds?: ScaleBounds // Only set when scalePercentile is used
 }
 
 // ============================================================================
@@ -327,6 +334,52 @@ export function getLevelRange(
 }
 
 /**
+ * Returns the p-th percentile (0-100) of values, interpolating linearly
+ * between the closest ranks. Returns undefined for empty input.
+ */
+export function percentile(values: number[], p: number): number | undefined {
+  if (values.length === 0) return undefined
+  const sorted = [...values].sort((a, b) => a - b)
+  const index = (p / 100) * (sorted.length - 1)
+  const lower = Math.floor(index)
+  const upper = Math.ceil(index)
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (index - lower)
+}
+
+/**
+ * Computes the min/max used for level scaling when scalePercentile is set,
+ * so a few extreme days don't compress the scale for all others.
+ * - linear: the (100-p)-th and p-th percentiles of all values
+ * - split: each side of neutral uses the p-th percentile of its own distances
+ *   from neutral (falls back to neutral when a side has no values)
+ */
+export function computeScaleBounds(
+  values: number[],
+  p: number,
+  split: boolean,
+  neutralValue?: number,
+): ScaleBounds {
+  if (values.length === 0) return { min: 0, max: 0 }
+
+  if (!split) {
+    return { min: percentile(values, 100 - p)!, max: percentile(values, p)! }
+  }
+
+  const neutral = resolveNeutralValue(
+    Math.min(...values),
+    Math.max(...values),
+    neutralValue,
+  )
+  const above = values.filter((v) => v > neutral).map((v) => v - neutral)
+  const below = values.filter((v) => v < neutral).map((v) => neutral - v)
+
+  return {
+    min: neutral - (percentile(below, p) ?? 0),
+    max: neutral + (percentile(above, p) ?? 0),
+  }
+}
+
+/**
  * Maps a count value to a level for divergingScale: 'split'.
  *
  * Only the exact neutral value gets the center level. Values above neutral are
@@ -445,6 +498,7 @@ export function boundDataToRange(
   maxValue?: number,
   colorThresholdValues?: number[],
   divergingScale?: 'linear' | 'split',
+  scaleBounds?: ScaleBounds,
 ): HeatmapData {
   // Build lookup map from normalized data
   const dataMap = new Map<string, number>()
@@ -497,6 +551,10 @@ export function boundDataToRange(
 
   const useSplitScale = isDiverging && divergingScale === 'split'
 
+  // Percentile bounds (when set) replace the data min/max for level scaling
+  const levelMin = scaleBounds?.min ?? minCount
+  const levelMax = scaleBounds?.max ?? maxCount
+
   for (const { date, count, hasData } of days) {
     let level: number
     if (colorThresholdValues) {
@@ -507,8 +565,8 @@ export function boundDataToRange(
       level = hasData
         ? getLevelSplit(
             count,
-            minCount,
-            maxCount,
+            levelMin,
+            levelMax,
             levelCount,
             neutralValue,
             maxValue,
@@ -519,15 +577,15 @@ export function boundDataToRange(
       level = hasData
         ? getLevelRange(
             count,
-            minCount,
-            maxCount,
+            levelMin,
+            levelMax,
             levelCount,
             thresholds,
             maxValue,
           )
         : 0
     } else {
-      level = getLevel(count, maxCount, levelCount, thresholds, maxValue)
+      level = getLevel(count, levelMax, levelCount, thresholds, maxValue)
     }
 
     const day: BoundedDay = { date, count, level }
@@ -560,7 +618,11 @@ export function boundDataToRange(
     // Calculate neutralLevel for diverging color scheme
     result.neutralLevel = useSplitScale
       ? Math.floor(levelCount / 2)
-      : calculateNeutralLevel(minCount, maxCount, levelCount, neutralValue)
+      : calculateNeutralLevel(levelMin, levelMax, levelCount, neutralValue)
+  }
+
+  if (scaleBounds) {
+    result.scaleBounds = scaleBounds
   }
 
   return result
@@ -600,6 +662,26 @@ export function processHeatmapData(
     ? computeGlobalStats(normalizedData, ranges)
     : undefined
 
+  // Percentile scaling: computed over all displayed days for consistent colors
+  let scaleBounds: ScaleBounds | undefined
+  if (config.scalePercentile !== undefined && !colorThresholdValues) {
+    const inRange = ranges.map((r) => [
+      formatDate(r.startDate),
+      formatDate(r.endDate),
+    ])
+    const values = normalizedData
+      .filter(({ date }) =>
+        inRange.some(([start, end]) => date >= start && date <= end),
+      )
+      .map(({ count }) => count)
+    scaleBounds = computeScaleBounds(
+      values,
+      config.scalePercentile,
+      !!isDiverging && config.divergingScale === 'split',
+      neutralValue,
+    )
+  }
+
   return ranges.map((range) =>
     boundDataToRange(
       normalizedData,
@@ -614,6 +696,7 @@ export function processHeatmapData(
       maxValue,
       colorThresholdValues,
       config.divergingScale,
+      scaleBounds,
     ),
   )
 }

@@ -13,6 +13,7 @@ import {
 import { validateConfig, weekStartDayToNumber, type CardConfig } from './config'
 import { baseStyles } from './shared/styles'
 import { t } from './shared/localize'
+import { shortenLabels } from './shared/labels'
 import { getCardRenderer, getAllCardStyles } from './cards/registry'
 import type { Tooltip, CardRenderContext } from './cards/types'
 import {
@@ -63,6 +64,7 @@ export class ZenUI extends LitElement {
   @state() private _darkMode = false
   @state() private _tooltip?: Tooltip
   @state() private _historyData: DataPoint[] = []
+  @state() private _subtractHistoryData: DataPoint[] = []
   @state() private _loading = false
   @state() private _error?: string
 
@@ -230,13 +232,13 @@ export class ZenUI extends LitElement {
         fetchDaily(this._config.entity),
         subtractEntity ? fetchDaily(subtractEntity) : Promise.resolve([]),
       ])
-      this._historyData = subtractEntity
-        ? subtractDataPoints(data, subtractData)
-        : data
+      this._historyData = data
+      this._subtractHistoryData = subtractData
     } catch (err) {
       console.error('Failed to fetch statistics:', err)
       this._error = 'Failed to load statistics data'
       this._historyData = []
+      this._subtractHistoryData = []
     } finally {
       this._loading = false
     }
@@ -259,13 +261,19 @@ export class ZenUI extends LitElement {
     return 'max'
   }
 
-  private _getRawData(): DataPoint[] {
-    if (!this._config) return []
+  /**
+   * Returns the per-entity daily data: the main entity and, when
+   * subtract_entity is set, the entity to subtract.
+   */
+  private _getSourceData(): { data: DataPoint[]; subtract?: DataPoint[] } {
+    if (!this._config) return { data: [] }
 
     // Preview mode: no entity configured, generate mock data
     if (!this._config.entity) {
-      return this._generateMockData()
+      return { data: this._generateMockData() }
     }
+
+    const subtractEntity = this._config.subtract_entity
 
     // Check for data in entity attribute first (for custom sensors with data attribute)
     if (this.hass) {
@@ -275,26 +283,58 @@ export class ZenUI extends LitElement {
         attribute,
       })
       if (attributeData.length > 0) {
-        const subtractEntity = this._config.subtract_entity
-        return subtractEntity
-          ? subtractDataPoints(
-              attributeData,
-              getAttributeData(this.hass, {
+        return {
+          data: attributeData,
+          subtract: subtractEntity
+            ? getAttributeData(this.hass, {
                 entityId: subtractEntity,
                 attribute,
-              }),
-            )
-          : attributeData
+              })
+            : undefined,
+        }
       }
     }
 
     // Use fetched history data
-    if (this._historyData.length > 0) {
-      return this._historyData
+    return {
+      data: this._historyData,
+      subtract: subtractEntity ? this._subtractHistoryData : undefined,
     }
+  }
 
-    // No data available
-    return []
+  private _getRawData(): DataPoint[] {
+    const { data, subtract } = this._getSourceData()
+    return subtract ? subtractDataPoints(data, subtract) : data
+  }
+
+  /**
+   * Per-entity values for a date, shown in the tooltip when subtract_entity is set.
+   */
+  private _getBreakdown(
+    date: string,
+  ): { label: string; value: number }[] | undefined {
+    const subtractEntity = this._config?.subtract_entity
+    if (!subtractEntity) return undefined
+
+    const { data, subtract = [] } = this._getSourceData()
+    const valueOn = (points: DataPoint[]) =>
+      points.find((p) => p.date === date)?.count ?? 0
+    const nameOf = (entityId: string) =>
+      (this.hass?.states[entityId]?.attributes?.friendly_name as string) ??
+      entityId
+    // Configured names win; otherwise use the differing parts of the friendly names
+    const [label, subtractLabel] = shortenLabels(
+      nameOf(this._config!.entity),
+      nameOf(subtractEntity),
+    )
+
+    return [
+      { label: this._config!.entity_name || label, value: valueOn(data) },
+      {
+        label: this._config!.subtract_entity_name || subtractLabel,
+        value: valueOn(subtract),
+      },
+    ]
   }
 
   private _generateMockData(): DataPoint[] {
@@ -420,6 +460,7 @@ export class ZenUI extends LitElement {
       isDiverging,
       neutralValue: config.neutralValue,
       divergingScale: config.divergingScale,
+      scalePercentile: config.scalePercentile,
       maxValue: config.maxValue,
       colorThresholdValues: config.colorThresholds?.map((t) => t.value),
     }
@@ -462,6 +503,7 @@ export class ZenUI extends LitElement {
       date,
       count,
       missing,
+      breakdown: missing ? undefined : this._getBreakdown(date),
     }
   }
 
@@ -574,6 +616,16 @@ export class ZenUI extends LitElement {
                   ? t('missing', this._getLocale())
                   : `${this._tooltip.count.toFixed(2)}${this._getUnit() ? ` ${this._getUnit()}` : ''}`}
               </div>
+              ${this._tooltip.breakdown?.map(
+                ({ label, value }) => html`
+                  <div class="tooltip-breakdown">
+                    ${label}:
+                    ${value.toFixed(2)}${this._getUnit()
+                      ? ` ${this._getUnit()}`
+                      : ''}
+                  </div>
+                `,
+              )}
             </div>
           `
         : ''}

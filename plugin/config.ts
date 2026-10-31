@@ -185,6 +185,16 @@ const OptionalHexColorSchema = v.pipe(
   }),
 )
 
+// Schema for scalePercentile (number 50-100, undefined if invalid)
+const ScalePercentileSchema = v.pipe(
+  v.unknown(),
+  v.transform((input) =>
+    typeof input === 'number' && input >= 50 && input <= 100
+      ? input
+      : undefined,
+  ),
+)
+
 // Schema for neutralValue (optional finite number)
 const NeutralValueSchema = v.pipe(
   v.unknown(),
@@ -268,6 +278,10 @@ const HeatmapConfigSchema = v.pipe(
     // Optional second entity whose daily values are subtracted from entity
     subtract_entity: v.optional(v.pipe(v.string(), v.trim())),
 
+    // Optional tooltip labels for entity and subtract_entity
+    entity_name: v.optional(v.pipe(v.string(), v.trim())),
+    subtract_entity_name: v.optional(v.pipe(v.string(), v.trim())),
+
     // Card type (required)
     card: v.picklist(['heatmap'], 'You need to define a card type'),
 
@@ -301,6 +315,9 @@ const HeatmapConfigSchema = v.pipe(
       DivergingScaleSchema,
       CONFIG_DEFAULTS.divergingScale,
     ),
+
+    // Scale levels to a percentile instead of min/max (outlier-resistant)
+    scalePercentile: v.optional(ScalePercentileSchema),
 
     // Absolute max value for 100% intensity
     maxValue: v.optional(MaxValueSchema),

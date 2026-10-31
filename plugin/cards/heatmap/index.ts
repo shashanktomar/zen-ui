@@ -30,12 +30,17 @@ export const heatmapCard: CardRenderer = {
       isValidHexColor(config.negativeColor) &&
       isValidHexColor(config.positiveColor)
 
-    // Get min/max from first data range (all ranges should have similar scale)
+    // Get min/max from first data range (all ranges should have similar scale).
+    // With percentile scaling, show the scale bounds and mark clipped ends.
+    const first = data[0]
+    const bounds = first?.scaleBounds
     const legendOptions: LegendOptions | undefined = isDiverging
       ? {
           isDiverging: true,
-          minValue: data[0]?.minCount,
-          maxValue: data[0]?.maxCount,
+          minValue: bounds?.min ?? first?.minCount,
+          maxValue: bounds?.max ?? first?.maxCount,
+          minClipped: !!bounds && (first?.minCount ?? 0) < bounds.min,
+          maxClipped: !!bounds && first.maxCount > bounds.max,
         }
       : undefined
 

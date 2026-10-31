@@ -5,6 +5,8 @@ import {
   getLevel,
   getLevelRange,
   getLevelSplit,
+  percentile,
+  computeScaleBounds,
   getLevelFromColorThresholds,
   calculateEvenThresholds,
   calculateNeutralLevel,
@@ -1722,5 +1724,92 @@ describe('processHeatmapData with divergingScale: split', () => {
     ]
     const result = processHeatmapData(config, rawData, date(2024, 6, 20))
     expect(result[0].neutralLevel).toBe(1)
+  })
+})
+
+describe('percentile', () => {
+  it('returns undefined for empty input', () => {
+    expect(percentile([], 95)).toBeUndefined()
+  })
+
+  it('returns min, median and max at 0, 50 and 100', () => {
+    expect(percentile([5, 1, 3, 2, 4], 0)).toBe(1)
+    expect(percentile([5, 1, 3, 2, 4], 50)).toBe(3)
+    expect(percentile([5, 1, 3, 2, 4], 100)).toBe(5)
+  })
+
+  it('interpolates linearly between values', () => {
+    expect(percentile([0, 10], 95)).toBeCloseTo(9.5)
+  })
+})
+
+describe('computeScaleBounds', () => {
+  const values = [-100, ...Array(19).fill(-10), ...Array(19).fill(5), 50]
+
+  it('uses the p and 100-p percentiles of all values in linear mode', () => {
+    const bounds = computeScaleBounds([0, 10, 20, 30, 40], 75, false)
+    expect(bounds.min).toBeCloseTo(10)
+    expect(bounds.max).toBeCloseTo(30)
+  })
+
+  it('scales each side of neutral separately in split mode', () => {
+    const bounds = computeScaleBounds(values, 95, true)
+    // negative deviations: 19x10 and 1x100 -> p95 = 10 + 0.05 * 90 = 14.5
+    expect(bounds.min).toBeCloseTo(-14.5)
+    // positive deviations: 19x5 and 1x50 -> p95 = 5 + 0.05 * 45 = 7.25
+    expect(bounds.max).toBeCloseTo(7.25)
+  })
+
+  it('falls back to the data extremes when a side has no values', () => {
+    const bounds = computeScaleBounds([0, 1, 2, 3], 95, true)
+    expect(bounds.min).toBe(0)
+    expect(bounds.max).toBeCloseTo(2.9)
+  })
+
+  it('returns zeros for empty input', () => {
+    expect(computeScaleBounds([], 95, true)).toEqual({ min: 0, max: 0 })
+  })
+})
+
+describe('processHeatmapData with scalePercentile', () => {
+  const date = (y: number, m: number, d: number) => new Date(y, m - 1, d)
+
+  // One extreme day (-100) plus 19 days at -10
+  const rawData = [
+    { date: '2024-01-01', count: -100 },
+    ...Array.from({ length: 19 }, (_, i) => ({
+      date: `2024-02-${String(i + 1).padStart(2, '0')}`,
+      count: -10,
+    })),
+    { date: '2024-03-01', count: 10 },
+  ]
+  const levelOf = (result: ReturnType<typeof processHeatmapData>, d: string) =>
+    result[0].weeks.flat().find((day) => day.date === d)!.level
+
+  it('without percentile, the outlier compresses the negative scale', () => {
+    const config: PipelineConfig = {
+      mode: 'fixed',
+      years: 1,
+      isDiverging: true,
+      divergingScale: 'split',
+    }
+    const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+    expect(levelOf(result, '2024-02-01')).toBe(1)
+    expect(result[0].scaleBounds).toBeUndefined()
+  })
+
+  it('with percentile, typical days reach the darker shades', () => {
+    const config: PipelineConfig = {
+      mode: 'fixed',
+      years: 1,
+      isDiverging: true,
+      divergingScale: 'split',
+      scalePercentile: 95,
+    }
+    const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+    expect(levelOf(result, '2024-02-01')).toBe(0)
+    expect(levelOf(result, '2024-01-01')).toBe(0)
+    expect(result[0].minCount).toBe(-100)
+    expect(result[0].scaleBounds!.min).toBeGreaterThan(-100)
   })
 })
