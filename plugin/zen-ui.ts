@@ -18,6 +18,7 @@ import type { Tooltip, CardRenderContext } from './cards/types'
 import {
   fetchStatistics,
   aggregateStatistics,
+  subtractDataPoints,
   getAttributeData,
   type DataPoint,
   type Hass,
@@ -180,7 +181,7 @@ export class ZenUI extends LitElement {
 
   private _getFetchKey(): string {
     const c = this._config!
-    return `${c.entity}|${c.range}|${c.years}|${c.days}|${c.end_date ?? ''}`
+    return `${c.entity}|${c.subtract_entity ?? ''}|${c.range}|${c.years}|${c.days}|${c.end_date ?? ''}`
   }
 
   private _fetchHistoryIfNeeded(): void {
@@ -210,16 +211,28 @@ export class ZenUI extends LitElement {
       const endDate = ranges[ranges.length - 1].endDate
 
       // Use statistics API for long-term data (not limited by purge_keep_days)
-      const statistics = await fetchStatistics(this.hass, {
-        entityId: this._config.entity,
-        startDate,
-        endDate,
-        period: 'day',
-      })
+      const fetchDaily = async (entityId: string) => {
+        const statistics = await fetchStatistics(this.hass!, {
+          entityId,
+          startDate,
+          endDate,
+          period: 'day',
+        })
+        // Pick statistics type based on sensor's state_class
+        return aggregateStatistics(
+          statistics,
+          this._getStatisticsType(entityId),
+        )
+      }
 
-      // Pick statistics type based on sensor's state_class
-      const statisticsType = this._getStatisticsType()
-      this._historyData = aggregateStatistics(statistics, statisticsType)
+      const subtractEntity = this._config.subtract_entity
+      const [data, subtractData] = await Promise.all([
+        fetchDaily(this._config.entity),
+        subtractEntity ? fetchDaily(subtractEntity) : Promise.resolve([]),
+      ])
+      this._historyData = subtractEntity
+        ? subtractDataPoints(data, subtractData)
+        : data
     } catch (err) {
       console.error('Failed to fetch statistics:', err)
       this._error = 'Failed to load statistics data'
@@ -229,10 +242,12 @@ export class ZenUI extends LitElement {
     }
   }
 
-  private _getStatisticsType(): 'max' | 'mean' | 'change' | 'state' {
-    if (!this._config?.entity || !this.hass) return 'max'
+  private _getStatisticsType(
+    entityId: string,
+  ): 'max' | 'mean' | 'change' | 'state' {
+    if (!this.hass) return 'max'
 
-    const stateObj = this.hass.states[this._config.entity]
+    const stateObj = this.hass.states[entityId]
     const stateClass = stateObj?.attributes?.state_class
 
     // state_class: total or total_increasing → use 'change' (daily delta)
@@ -254,12 +269,22 @@ export class ZenUI extends LitElement {
 
     // Check for data in entity attribute first (for custom sensors with data attribute)
     if (this.hass) {
+      const attribute = this._config.attribute || 'data'
       const attributeData = getAttributeData(this.hass, {
         entityId: this._config.entity,
-        attribute: this._config.attribute || 'data',
+        attribute,
       })
       if (attributeData.length > 0) {
-        return attributeData
+        const subtractEntity = this._config.subtract_entity
+        return subtractEntity
+          ? subtractDataPoints(
+              attributeData,
+              getAttributeData(this.hass, {
+                entityId: subtractEntity,
+                attribute,
+              }),
+            )
+          : attributeData
       }
     }
 
@@ -394,6 +419,7 @@ export class ZenUI extends LitElement {
       valueMode: isDiverging ? 'range' : config.valueMode,
       isDiverging,
       neutralValue: config.neutralValue,
+      divergingScale: config.divergingScale,
       maxValue: config.maxValue,
       colorThresholdValues: config.colorThresholds?.map((t) => t.value),
     }

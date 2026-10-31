@@ -4,6 +4,7 @@ import {
   calculateDateRanges,
   getLevel,
   getLevelRange,
+  getLevelSplit,
   getLevelFromColorThresholds,
   calculateEvenThresholds,
   calculateNeutralLevel,
@@ -1638,5 +1639,88 @@ describe('calculateNeutralLevel', () => {
     expect(calculateNeutralLevel(-10, 10, 7)).toBe(3)
     // levelCount 9, zero in range [-10, 10] at 50% → level 4
     expect(calculateNeutralLevel(-10, 10, 9)).toBe(4)
+  })
+})
+
+describe('getLevelSplit', () => {
+  // levelCount 5: levels 0-1 negative, 2 neutral, 3-4 positive
+  it('returns the center level only for the exact neutral value', () => {
+    expect(getLevelSplit(0, -28.6, 19.8, 5, 0)).toBe(2)
+  })
+
+  it('gives any value above neutral at least the first positive level', () => {
+    expect(getLevelSplit(0.1, -28.6, 19.8, 5, 0)).toBe(3)
+    expect(getLevelSplit(9.9, -28.6, 19.8, 5, 0)).toBe(3)
+    expect(getLevelSplit(10, -28.6, 19.8, 5, 0)).toBe(4)
+    expect(getLevelSplit(19.8, -28.6, 19.8, 5, 0)).toBe(4)
+  })
+
+  it('gives any value below neutral at least the first negative level', () => {
+    expect(getLevelSplit(-0.1, -28.6, 19.8, 5, 0)).toBe(1)
+    expect(getLevelSplit(-8, -28.6, 19.8, 5, 0)).toBe(1)
+    expect(getLevelSplit(-15, -28.6, 19.8, 5, 0)).toBe(0)
+    expect(getLevelSplit(-28.6, -28.6, 19.8, 5, 0)).toBe(0)
+  })
+
+  it('scales each side over more levels with a higher levelCount', () => {
+    // levelCount 7: center 3, three levels per side
+    expect(getLevelSplit(1, -30, 30, 7, 0)).toBe(4)
+    expect(getLevelSplit(15, -30, 30, 7, 0)).toBe(5)
+    expect(getLevelSplit(30, -30, 30, 7, 0)).toBe(6)
+    expect(getLevelSplit(-15, -30, 30, 7, 0)).toBe(1)
+  })
+
+  it('caps the positive side at maxValue', () => {
+    expect(getLevelSplit(5, -10, 100, 5, 0, 10)).toBe(3)
+    expect(getLevelSplit(10, -10, 100, 5, 0, 10)).toBe(4)
+    expect(getLevelSplit(50, -10, 100, 5, 0, 10)).toBe(4)
+  })
+
+  it('uses a custom neutral value', () => {
+    expect(getLevelSplit(50, 0, 100, 5, 50)).toBe(2)
+    expect(getLevelSplit(49, 0, 100, 5, 50)).toBe(1)
+    expect(getLevelSplit(51, 0, 100, 5, 50)).toBe(3)
+  })
+})
+
+describe('processHeatmapData with divergingScale: split', () => {
+  const date = (y: number, m: number, d: number) => new Date(y, m - 1, d)
+
+  it('centers the neutral level and colors small values', () => {
+    const config: PipelineConfig = {
+      mode: 'fixed',
+      years: 1,
+      isDiverging: true,
+      divergingScale: 'split',
+    }
+    const rawData = [
+      { date: '2024-01-10', count: -28.6 },
+      { date: '2024-01-11', count: -8 },
+      { date: '2024-01-12', count: 0 },
+      { date: '2024-01-13', count: 0.5 },
+      { date: '2024-01-14', count: 19.8 },
+    ]
+    const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+    const levels = result[0].weeks
+      .flat()
+      .filter((d) => d.date >= '2024-01-10' && d.date <= '2024-01-14')
+      .map((d) => d.level)
+
+    expect(result[0].neutralLevel).toBe(2)
+    expect(levels).toEqual([0, 1, 2, 3, 4])
+  })
+
+  it('keeps the linear scale by default', () => {
+    const config: PipelineConfig = {
+      mode: 'fixed',
+      years: 1,
+      isDiverging: true,
+    }
+    const rawData = [
+      { date: '2024-01-10', count: -5 },
+      { date: '2024-01-11', count: 15 },
+    ]
+    const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+    expect(result[0].neutralLevel).toBe(1)
   })
 })

@@ -46,6 +46,41 @@ describe('validateConfig', () => {
       expect(config.entity).toBe('sensor.test')
       expect(config.card).toBe('heatmap')
     })
+
+    it('defaults missingStyle to faint', () => {
+      expect(validateConfig(validConfig()).missingStyle).toBe('faint')
+    })
+
+    it('accepts missingStyle outline and falls back on invalid values', () => {
+      expect(
+        validateConfig({ ...validConfig(), missingStyle: 'outline' })
+          .missingStyle,
+      ).toBe('outline')
+      expect(
+        validateConfig({ ...validConfig(), missingStyle: 'dotted' })
+          .missingStyle,
+      ).toBe('faint')
+    })
+
+    it('defaults divergingScale to linear and accepts split', () => {
+      expect(validateConfig(validConfig()).divergingScale).toBe('linear')
+      expect(
+        validateConfig({ ...validConfig(), divergingScale: 'split' })
+          .divergingScale,
+      ).toBe('split')
+      expect(
+        validateConfig({ ...validConfig(), divergingScale: 'log' })
+          .divergingScale,
+      ).toBe('linear')
+    })
+
+    it('accepts and trims subtract_entity', () => {
+      const config = validateConfig({
+        ...validConfig(),
+        subtract_entity: '  sensor.consumed ',
+      })
+      expect(config.subtract_entity).toBe('sensor.consumed')
+    })
   })
 
   describe('defaults', () => {

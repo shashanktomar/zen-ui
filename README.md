@@ -73,6 +73,7 @@ title: Activity
 | `entity`          | string   | **Required** | Entity ID that contains your data                                    |
 | `card`            | string   | **Required** | Card type: `heatmap`                                                 |
 | `title`           | string   | —            | Card title displayed at the top                                      |
+| `subtract_entity` | string   | —            | Entity whose daily values are subtracted from `entity` (net value)   |
 | `attribute`       | string   | `data`       | Entity attribute containing the data array                           |
 | `range`           | string   | `rolling`    | `rolling` (last 364 days) or `year` (calendar years)                 |
 | `days`            | number   | `364`        | Number of days in rolling window (7-365). Only applies to `rolling`  |
@@ -81,6 +82,7 @@ title: Activity
 | `negativeColor`   | string   | —            | Color for negative values (hex). Requires `positiveColor`            |
 | `positiveColor`   | string   | —            | Color for positive values (hex). Requires `negativeColor`            |
 | `neutralValue`    | number   | —            | Center point for diverging colors (default: 0 if in range)           |
+| `divergingScale`  | string   | `linear`     | `linear` or `split` (gray only at neutral, see below)                |
 | `backgroundColor` | string   | —            | Custom card background color                                         |
 | `levelCount`      | number   | `5`          | Number of intensity levels (2-10)                                    |
 | `levelThresholds` | number[] | —            | Custom percentage boundaries for levels (see below)                  |
@@ -90,6 +92,7 @@ title: Activity
 | `weekdayLabels`   | string   | `short`      | Weekday label display: `none`, `short`, `all`, or `letter`           |
 | `valueMode`       | string   | `clamp_zero` | `clamp_zero` (negatives = 0) or `range` (levels span min..max)       |
 | `missingMode`     | string   | `zero`       | `zero` (missing = 0) or `transparent` (missing days are distinct)    |
+| `missingStyle`    | string   | `faint`      | How missing days look: `faint` (barely visible) or `outline`         |
 | `show_legend`     | boolean  | `true`       | Show the Less/More legend                                            |
 | `unit`            | string   | —            | Unit to display in tooltip (auto-detects from entity if not set)     |
 | `darkMode`        | boolean  | auto         | Force dark (`true`) or light (`false`) mode. Auto-detects if omitted |
@@ -469,6 +472,27 @@ levelCount: 7
 Values below 50 appear in maroon tones, values above 50 in teal tones.
 
 > **Note:** Diverging mode requires both `negativeColor` AND `positiveColor`. The `levelCount` is automatically adjusted to be odd (≥3) to ensure a clear center point.
+
+##### Net of Two Entities
+
+Combine two sensors into one heatmap by subtracting one from the other per day. For example, energy returned minus energy consumed, green on net-export days and red on net-import days:
+
+```yaml
+type: custom:zen-ui
+card: heatmap
+entity: sensor.electricity_returned_today
+subtract_entity: sensor.electricity_consumption_today
+title: Net energy
+range: year
+negativeColor: '#e5534b'
+positiveColor: '#40c463'
+```
+
+Both entities are fetched separately and subtracted per day. A day that has data for only one entity counts the other as zero.
+
+By default, diverging levels are spread evenly over the whole min..max range, so values near zero can land in the gray band (and with lopsided data, that band is not centered on zero). Add `divergingScale: split` to make only the exact neutral value gray: positive values are scaled from neutral to max over the positive colors and negative values from neutral to min over the negative colors, so every non-neutral day gets at least the lightest shade of its color. Combine with `levelCount: 7` or `9` for more shades per side. `levelThresholds` is ignored in split mode.
+
+Days without data (such as future days in `range: year`) are drawn very faintly in diverging mode. Add `missingStyle: outline` to show them as empty outlined boxes instead.
 
 ##### HA Screenshot
 

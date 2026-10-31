@@ -21,6 +21,12 @@ export type CardType = 'heatmap'
 // Missing mode type
 export type MissingMode = 'zero' | 'transparent'
 
+// Missing style type (how days without data are drawn)
+export type MissingStyle = 'faint' | 'outline'
+
+// Diverging scale type (how levels map around the neutral point)
+export type DivergingScale = 'linear' | 'split'
+
 // Value mode type
 export type ValueMode = 'clamp_zero' | 'range'
 
@@ -42,6 +48,8 @@ export const CONFIG_DEFAULTS = {
   show_legend: true,
   attribute: 'data',
   missingMode: 'zero' as MissingMode,
+  missingStyle: 'faint' as MissingStyle,
+  divergingScale: 'linear' as DivergingScale,
   valueMode: 'clamp_zero' as ValueMode,
 } as const
 
@@ -129,6 +137,18 @@ const LevelCountSchema = v.pipe(
 const MissingModeSchema = withFallback(
   v.picklist(['zero', 'transparent']),
   CONFIG_DEFAULTS.missingMode,
+)
+
+// Schema for missingStyle
+const MissingStyleSchema = withFallback(
+  v.picklist(['faint', 'outline']),
+  CONFIG_DEFAULTS.missingStyle,
+)
+
+// Schema for divergingScale
+const DivergingScaleSchema = withFallback(
+  v.picklist(['linear', 'split']),
+  CONFIG_DEFAULTS.divergingScale,
 )
 
 // Schema for valueMode
@@ -245,6 +265,9 @@ const HeatmapConfigSchema = v.pipe(
     // Required (but can be empty for preview mode)
     entity: v.pipe(v.string('You need to define an entity'), v.trim()),
 
+    // Optional second entity whose daily values are subtracted from entity
+    subtract_entity: v.optional(v.pipe(v.string(), v.trim())),
+
     // Card type (required)
     card: v.picklist(['heatmap'], 'You need to define a card type'),
 
@@ -264,6 +287,7 @@ const HeatmapConfigSchema = v.pipe(
     levelCount: v.optional(LevelCountSchema, CONFIG_DEFAULTS.levelCount),
     levelThresholds: v.optional(v.array(v.number())),
     missingMode: v.optional(MissingModeSchema, CONFIG_DEFAULTS.missingMode),
+    missingStyle: v.optional(MissingStyleSchema, CONFIG_DEFAULTS.missingStyle),
     valueMode: v.optional(ValueModeSchema, CONFIG_DEFAULTS.valueMode),
     baseColor: v.optional(BaseColorSchema, CONFIG_DEFAULTS.baseColor),
     unit: v.optional(v.string()),
@@ -273,6 +297,10 @@ const HeatmapConfigSchema = v.pipe(
     negativeColor: v.optional(OptionalHexColorSchema),
     positiveColor: v.optional(OptionalHexColorSchema),
     neutralValue: v.optional(NeutralValueSchema),
+    divergingScale: v.optional(
+      DivergingScaleSchema,
+      CONFIG_DEFAULTS.divergingScale,
+    ),
 
     // Absolute max value for 100% intensity
     maxValue: v.optional(MaxValueSchema),

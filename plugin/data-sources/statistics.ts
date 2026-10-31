@@ -83,3 +83,20 @@ export function aggregateStatistics(
 
   return result.sort((a, b) => a.date.localeCompare(b.date))
 }
+
+/**
+ * Subtracts one daily series from another (a - b), matched by date.
+ * A date present on only one side is treated as zero on the other.
+ */
+export function subtractDataPoints(
+  a: DataPoint[],
+  b: DataPoint[],
+): DataPoint[] {
+  const totals = new Map<string, number>()
+  for (const p of a) totals.set(p.date, (totals.get(p.date) ?? 0) + p.count)
+  for (const p of b) totals.set(p.date, (totals.get(p.date) ?? 0) - p.count)
+
+  return [...totals]
+    .map(([date, count]) => ({ date, count }))
+    .sort((x, y) => x.date.localeCompare(y.date))
+}
