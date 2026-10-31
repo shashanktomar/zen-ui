@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getDayLabel, generateDayLabels } from './render'
+import { getDayLabel, generateDayLabels, getMissingCellStyle } from './render'
 
 describe('getDayLabel', () => {
   it('returns short weekday names for short mode', () => {
@@ -132,5 +132,20 @@ describe('generateDayLabels', () => {
       expect(labels[0]).toEqual({ row: 0, label: 'M' })
       expect(labels[6]).toEqual({ row: 6, label: 'S' })
     })
+  })
+})
+
+describe('getMissingCellStyle', () => {
+  it('returns a faint fill with no stroke by default', () => {
+    expect(getMissingCellStyle('faint')).toEqual({
+      fill: 'rgba(128, 128, 128, 0.02)',
+      stroke: 'none',
+    })
+  })
+
+  it('returns an outline with transparent fill for outline style', () => {
+    const style = getMissingCellStyle('outline')
+    expect(style.fill).toBe('transparent')
+    expect(style.stroke).not.toBe('none')
   })
 })

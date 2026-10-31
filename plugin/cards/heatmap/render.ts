@@ -7,7 +7,7 @@
 import { html, svg, type TemplateResult } from 'lit'
 import type { HeatmapData } from '../../data-pipeline'
 import type { CardRenderContext } from '../types'
-import type { WeekdayLabelsMode } from '../../config'
+import type { MissingStyle, WeekdayLabelsMode } from '../../config'
 import { calculateGridPositions } from './grid'
 import { t } from '../../shared/localize'
 import { parseYmdDate } from '../../shared/date'
@@ -21,6 +21,24 @@ const Y_START = 20
 export interface DayLabel {
   row: number
   label: string
+}
+
+/**
+ * Fill and stroke for days without data.
+ * - faint: subtle placeholder fill (default)
+ * - outline: empty box with a thin border
+ */
+export function getMissingCellStyle(style: MissingStyle = 'faint'): {
+  fill: string
+  stroke: string
+} {
+  if (style === 'outline') {
+    return {
+      fill: 'transparent',
+      stroke: 'rgba(128, 128, 128, 0.35)',
+    }
+  }
+  return { fill: 'rgba(128, 128, 128, 0.02)', stroke: 'none' }
 }
 
 /**
@@ -82,6 +100,7 @@ export function renderYearGraph(
   showYearLabel: boolean,
 ): TemplateResult {
   const weekStart = context.config.weekStartDay === 'sunday' ? 0 : 1
+  const missingCellStyle = getMissingCellStyle(context.config.missingStyle)
 
   // Build month labels from the processed weeks
   const monthStartColumns = new Map<number, number>()
@@ -148,10 +167,14 @@ export function renderYearGraph(
           ${labels}
           ${calculateGridPositions(heatmapData.weeks.flat(), weekStart).map(
             ({ day, row, col }) => {
-              // Missing days are rendered with a subtle placeholder color
-              const color = day.missing
-                ? 'rgba(128, 128, 128, 0.02)'
-                : (colorScale[day.level] ?? colorScale[colorScale.length - 1])
+              const { fill, stroke } = day.missing
+                ? missingCellStyle
+                : {
+                    fill:
+                      colorScale[day.level] ??
+                      colorScale[colorScale.length - 1],
+                    stroke: 'none',
+                  }
               return svg`
                 <rect
                   width="${RECT_SIZE}"
@@ -160,7 +183,8 @@ export function renderYearGraph(
                   y="${row * STEP}"
                   rx="2"
                   ry="2"
-                  fill="${color}"
+                  fill="${fill}"
+                  stroke="${stroke}"
                   style="cursor: pointer;"
                   @mouseenter=${(e: MouseEvent) => context.onCellMouseEnter(e, day.date, day.count, day.missing)}
                   @mouseleave=${context.onCellMouseLeave}
@@ -183,6 +207,8 @@ export interface LegendOptions {
   isDiverging?: boolean
   minValue?: number
   maxValue?: number
+  minClipped?: boolean // Values exist below minValue (percentile scaling): prefix "≤"
+  maxClipped?: boolean // Values exist above maxValue (percentile scaling): prefix "≥"
 }
 
 /**
@@ -206,7 +232,8 @@ export function renderLegend(
   locale: string,
   options?: LegendOptions,
 ): TemplateResult {
-  const { isDiverging, minValue, maxValue } = options ?? {}
+  const { isDiverging, minValue, maxValue, minClipped, maxClipped } =
+    options ?? {}
 
   const legendItems = colorScale.map((color) => {
     const style =
@@ -225,11 +252,11 @@ export function renderLegend(
 
   const minLabel =
     isDiverging && hasValidRange
-      ? formatDivergingValue(minValue, locale)
+      ? `${minClipped ? '≤ ' : ''}${formatDivergingValue(minValue, locale)}`
       : t('less', locale)
   const maxLabel =
     isDiverging && hasValidRange
-      ? formatDivergingValue(maxValue, locale)
+      ? `${maxClipped ? '≥ ' : ''}${formatDivergingValue(maxValue, locale)}`
       : t('more', locale)
 
   return html`

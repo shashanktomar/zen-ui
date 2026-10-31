@@ -14,6 +14,7 @@ export interface Tooltip {
   date: string
   count: number
   missing?: boolean
+  breakdown?: { label: string; value: number }[] // Per-entity values (subtract_entity)
 }
 
 export interface CardRenderContext {

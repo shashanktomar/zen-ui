@@ -13,11 +13,13 @@ import {
 import { validateConfig, weekStartDayToNumber, type CardConfig } from './config'
 import { baseStyles } from './shared/styles'
 import { t } from './shared/localize'
+import { shortenLabels } from './shared/labels'
 import { getCardRenderer, getAllCardStyles } from './cards/registry'
 import type { Tooltip, CardRenderContext } from './cards/types'
 import {
   fetchStatistics,
   aggregateStatistics,
+  subtractDataPoints,
   getAttributeData,
   type DataPoint,
   type Hass,
@@ -62,6 +64,7 @@ export class ZenUI extends LitElement {
   @state() private _darkMode = false
   @state() private _tooltip?: Tooltip
   @state() private _historyData: DataPoint[] = []
+  @state() private _subtractHistoryData: DataPoint[] = []
   @state() private _loading = false
   @state() private _error?: string
 
@@ -180,7 +183,7 @@ export class ZenUI extends LitElement {
 
   private _getFetchKey(): string {
     const c = this._config!
-    return `${c.entity}|${c.range}|${c.years}|${c.days}|${c.end_date ?? ''}`
+    return `${c.entity}|${c.subtract_entity ?? ''}|${c.range}|${c.years}|${c.days}|${c.end_date ?? ''}`
   }
 
   private _fetchHistoryIfNeeded(): void {
@@ -210,29 +213,43 @@ export class ZenUI extends LitElement {
       const endDate = ranges[ranges.length - 1].endDate
 
       // Use statistics API for long-term data (not limited by purge_keep_days)
-      const statistics = await fetchStatistics(this.hass, {
-        entityId: this._config.entity,
-        startDate,
-        endDate,
-        period: 'day',
-      })
+      const fetchDaily = async (entityId: string) => {
+        const statistics = await fetchStatistics(this.hass!, {
+          entityId,
+          startDate,
+          endDate,
+          period: 'day',
+        })
+        // Pick statistics type based on sensor's state_class
+        return aggregateStatistics(
+          statistics,
+          this._getStatisticsType(entityId),
+        )
+      }
 
-      // Pick statistics type based on sensor's state_class
-      const statisticsType = this._getStatisticsType()
-      this._historyData = aggregateStatistics(statistics, statisticsType)
+      const subtractEntity = this._config.subtract_entity
+      const [data, subtractData] = await Promise.all([
+        fetchDaily(this._config.entity),
+        subtractEntity ? fetchDaily(subtractEntity) : Promise.resolve([]),
+      ])
+      this._historyData = data
+      this._subtractHistoryData = subtractData
     } catch (err) {
       console.error('Failed to fetch statistics:', err)
       this._error = 'Failed to load statistics data'
       this._historyData = []
+      this._subtractHistoryData = []
     } finally {
       this._loading = false
     }
   }
 
-  private _getStatisticsType(): 'max' | 'mean' | 'change' | 'state' {
-    if (!this._config?.entity || !this.hass) return 'max'
+  private _getStatisticsType(
+    entityId: string,
+  ): 'max' | 'mean' | 'change' | 'state' {
+    if (!this.hass) return 'max'
 
-    const stateObj = this.hass.states[this._config.entity]
+    const stateObj = this.hass.states[entityId]
     const stateClass = stateObj?.attributes?.state_class
 
     // state_class: total or total_increasing → use 'change' (daily delta)
@@ -244,32 +261,80 @@ export class ZenUI extends LitElement {
     return 'max'
   }
 
-  private _getRawData(): DataPoint[] {
-    if (!this._config) return []
+  /**
+   * Returns the per-entity daily data: the main entity and, when
+   * subtract_entity is set, the entity to subtract.
+   */
+  private _getSourceData(): { data: DataPoint[]; subtract?: DataPoint[] } {
+    if (!this._config) return { data: [] }
 
     // Preview mode: no entity configured, generate mock data
     if (!this._config.entity) {
-      return this._generateMockData()
+      return { data: this._generateMockData() }
     }
+
+    const subtractEntity = this._config.subtract_entity
 
     // Check for data in entity attribute first (for custom sensors with data attribute)
     if (this.hass) {
+      const attribute = this._config.attribute || 'data'
       const attributeData = getAttributeData(this.hass, {
         entityId: this._config.entity,
-        attribute: this._config.attribute || 'data',
+        attribute,
       })
       if (attributeData.length > 0) {
-        return attributeData
+        return {
+          data: attributeData,
+          subtract: subtractEntity
+            ? getAttributeData(this.hass, {
+                entityId: subtractEntity,
+                attribute,
+              })
+            : undefined,
+        }
       }
     }
 
     // Use fetched history data
-    if (this._historyData.length > 0) {
-      return this._historyData
+    return {
+      data: this._historyData,
+      subtract: subtractEntity ? this._subtractHistoryData : undefined,
     }
+  }
 
-    // No data available
-    return []
+  private _getRawData(): DataPoint[] {
+    const { data, subtract } = this._getSourceData()
+    return subtract ? subtractDataPoints(data, subtract) : data
+  }
+
+  /**
+   * Per-entity values for a date, shown in the tooltip when subtract_entity is set.
+   */
+  private _getBreakdown(
+    date: string,
+  ): { label: string; value: number }[] | undefined {
+    const subtractEntity = this._config?.subtract_entity
+    if (!subtractEntity) return undefined
+
+    const { data, subtract = [] } = this._getSourceData()
+    const valueOn = (points: DataPoint[]) =>
+      points.find((p) => p.date === date)?.count ?? 0
+    const nameOf = (entityId: string) =>
+      (this.hass?.states[entityId]?.attributes?.friendly_name as string) ??
+      entityId
+    // Configured names win; otherwise use the differing parts of the friendly names
+    const [label, subtractLabel] = shortenLabels(
+      nameOf(this._config!.entity),
+      nameOf(subtractEntity),
+    )
+
+    return [
+      { label: this._config!.entity_name || label, value: valueOn(data) },
+      {
+        label: this._config!.subtract_entity_name || subtractLabel,
+        value: valueOn(subtract),
+      },
+    ]
   }
 
   private _generateMockData(): DataPoint[] {
@@ -394,6 +459,8 @@ export class ZenUI extends LitElement {
       valueMode: isDiverging ? 'range' : config.valueMode,
       isDiverging,
       neutralValue: config.neutralValue,
+      divergingScale: config.divergingScale,
+      scalePercentile: config.scalePercentile,
       maxValue: config.maxValue,
       colorThresholdValues: config.colorThresholds?.map((t) => t.value),
     }
@@ -436,6 +503,7 @@ export class ZenUI extends LitElement {
       date,
       count,
       missing,
+      breakdown: missing ? undefined : this._getBreakdown(date),
     }
   }
 
@@ -548,6 +616,16 @@ export class ZenUI extends LitElement {
                   ? t('missing', this._getLocale())
                   : `${this._tooltip.count.toFixed(2)}${this._getUnit() ? ` ${this._getUnit()}` : ''}`}
               </div>
+              ${this._tooltip.breakdown?.map(
+                ({ label, value }) => html`
+                  <div class="tooltip-breakdown">
+                    ${label}:
+                    ${value.toFixed(2)}${this._getUnit()
+                      ? ` ${this._getUnit()}`
+                      : ''}
+                  </div>
+                `,
+              )}
             </div>
           `
         : ''}

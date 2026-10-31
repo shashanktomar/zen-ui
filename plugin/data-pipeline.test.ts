@@ -4,6 +4,9 @@ import {
   calculateDateRanges,
   getLevel,
   getLevelRange,
+  getLevelSplit,
+  percentile,
+  computeScaleBounds,
   getLevelFromColorThresholds,
   calculateEvenThresholds,
   calculateNeutralLevel,
@@ -1638,5 +1641,175 @@ describe('calculateNeutralLevel', () => {
     expect(calculateNeutralLevel(-10, 10, 7)).toBe(3)
     // levelCount 9, zero in range [-10, 10] at 50% → level 4
     expect(calculateNeutralLevel(-10, 10, 9)).toBe(4)
+  })
+})
+
+describe('getLevelSplit', () => {
+  // levelCount 5: levels 0-1 negative, 2 neutral, 3-4 positive
+  it('returns the center level only for the exact neutral value', () => {
+    expect(getLevelSplit(0, -28.6, 19.8, 5, 0)).toBe(2)
+  })
+
+  it('gives any value above neutral at least the first positive level', () => {
+    expect(getLevelSplit(0.1, -28.6, 19.8, 5, 0)).toBe(3)
+    expect(getLevelSplit(9.9, -28.6, 19.8, 5, 0)).toBe(3)
+    expect(getLevelSplit(10, -28.6, 19.8, 5, 0)).toBe(4)
+    expect(getLevelSplit(19.8, -28.6, 19.8, 5, 0)).toBe(4)
+  })
+
+  it('gives any value below neutral at least the first negative level', () => {
+    expect(getLevelSplit(-0.1, -28.6, 19.8, 5, 0)).toBe(1)
+    expect(getLevelSplit(-8, -28.6, 19.8, 5, 0)).toBe(1)
+    expect(getLevelSplit(-15, -28.6, 19.8, 5, 0)).toBe(0)
+    expect(getLevelSplit(-28.6, -28.6, 19.8, 5, 0)).toBe(0)
+  })
+
+  it('scales each side over more levels with a higher levelCount', () => {
+    // levelCount 7: center 3, three levels per side
+    expect(getLevelSplit(1, -30, 30, 7, 0)).toBe(4)
+    expect(getLevelSplit(15, -30, 30, 7, 0)).toBe(5)
+    expect(getLevelSplit(30, -30, 30, 7, 0)).toBe(6)
+    expect(getLevelSplit(-15, -30, 30, 7, 0)).toBe(1)
+  })
+
+  it('caps the positive side at maxValue', () => {
+    expect(getLevelSplit(5, -10, 100, 5, 0, 10)).toBe(3)
+    expect(getLevelSplit(10, -10, 100, 5, 0, 10)).toBe(4)
+    expect(getLevelSplit(50, -10, 100, 5, 0, 10)).toBe(4)
+  })
+
+  it('uses a custom neutral value', () => {
+    expect(getLevelSplit(50, 0, 100, 5, 50)).toBe(2)
+    expect(getLevelSplit(49, 0, 100, 5, 50)).toBe(1)
+    expect(getLevelSplit(51, 0, 100, 5, 50)).toBe(3)
+  })
+})
+
+describe('processHeatmapData with divergingScale: split', () => {
+  const date = (y: number, m: number, d: number) => new Date(y, m - 1, d)
+
+  it('centers the neutral level and colors small values', () => {
+    const config: PipelineConfig = {
+      mode: 'fixed',
+      years: 1,
+      isDiverging: true,
+      divergingScale: 'split',
+    }
+    const rawData = [
+      { date: '2024-01-10', count: -28.6 },
+      { date: '2024-01-11', count: -8 },
+      { date: '2024-01-12', count: 0 },
+      { date: '2024-01-13', count: 0.5 },
+      { date: '2024-01-14', count: 19.8 },
+    ]
+    const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+    const levels = result[0].weeks
+      .flat()
+      .filter((d) => d.date >= '2024-01-10' && d.date <= '2024-01-14')
+      .map((d) => d.level)
+
+    expect(result[0].neutralLevel).toBe(2)
+    expect(levels).toEqual([0, 1, 2, 3, 4])
+  })
+
+  it('keeps the linear scale by default', () => {
+    const config: PipelineConfig = {
+      mode: 'fixed',
+      years: 1,
+      isDiverging: true,
+    }
+    const rawData = [
+      { date: '2024-01-10', count: -5 },
+      { date: '2024-01-11', count: 15 },
+    ]
+    const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+    expect(result[0].neutralLevel).toBe(1)
+  })
+})
+
+describe('percentile', () => {
+  it('returns undefined for empty input', () => {
+    expect(percentile([], 95)).toBeUndefined()
+  })
+
+  it('returns min, median and max at 0, 50 and 100', () => {
+    expect(percentile([5, 1, 3, 2, 4], 0)).toBe(1)
+    expect(percentile([5, 1, 3, 2, 4], 50)).toBe(3)
+    expect(percentile([5, 1, 3, 2, 4], 100)).toBe(5)
+  })
+
+  it('interpolates linearly between values', () => {
+    expect(percentile([0, 10], 95)).toBeCloseTo(9.5)
+  })
+})
+
+describe('computeScaleBounds', () => {
+  const values = [-100, ...Array(19).fill(-10), ...Array(19).fill(5), 50]
+
+  it('uses the p and 100-p percentiles of all values in linear mode', () => {
+    const bounds = computeScaleBounds([0, 10, 20, 30, 40], 75, false)
+    expect(bounds.min).toBeCloseTo(10)
+    expect(bounds.max).toBeCloseTo(30)
+  })
+
+  it('scales each side of neutral separately in split mode', () => {
+    const bounds = computeScaleBounds(values, 95, true)
+    // negative deviations: 19x10 and 1x100 -> p95 = 10 + 0.05 * 90 = 14.5
+    expect(bounds.min).toBeCloseTo(-14.5)
+    // positive deviations: 19x5 and 1x50 -> p95 = 5 + 0.05 * 45 = 7.25
+    expect(bounds.max).toBeCloseTo(7.25)
+  })
+
+  it('falls back to the data extremes when a side has no values', () => {
+    const bounds = computeScaleBounds([0, 1, 2, 3], 95, true)
+    expect(bounds.min).toBe(0)
+    expect(bounds.max).toBeCloseTo(2.9)
+  })
+
+  it('returns zeros for empty input', () => {
+    expect(computeScaleBounds([], 95, true)).toEqual({ min: 0, max: 0 })
+  })
+})
+
+describe('processHeatmapData with scalePercentile', () => {
+  const date = (y: number, m: number, d: number) => new Date(y, m - 1, d)
+
+  // One extreme day (-100) plus 19 days at -10
+  const rawData = [
+    { date: '2024-01-01', count: -100 },
+    ...Array.from({ length: 19 }, (_, i) => ({
+      date: `2024-02-${String(i + 1).padStart(2, '0')}`,
+      count: -10,
+    })),
+    { date: '2024-03-01', count: 10 },
+  ]
+  const levelOf = (result: ReturnType<typeof processHeatmapData>, d: string) =>
+    result[0].weeks.flat().find((day) => day.date === d)!.level
+
+  it('without percentile, the outlier compresses the negative scale', () => {
+    const config: PipelineConfig = {
+      mode: 'fixed',
+      years: 1,
+      isDiverging: true,
+      divergingScale: 'split',
+    }
+    const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+    expect(levelOf(result, '2024-02-01')).toBe(1)
+    expect(result[0].scaleBounds).toBeUndefined()
+  })
+
+  it('with percentile, typical days reach the darker shades', () => {
+    const config: PipelineConfig = {
+      mode: 'fixed',
+      years: 1,
+      isDiverging: true,
+      divergingScale: 'split',
+      scalePercentile: 95,
+    }
+    const result = processHeatmapData(config, rawData, date(2024, 6, 20))
+    expect(levelOf(result, '2024-02-01')).toBe(0)
+    expect(levelOf(result, '2024-01-01')).toBe(0)
+    expect(result[0].minCount).toBe(-100)
+    expect(result[0].scaleBounds!.min).toBeGreaterThan(-100)
   })
 })

@@ -108,6 +108,11 @@ export const baseStyles = css`
     font-weight: 500;
   }
 
+  .tooltip-breakdown {
+    opacity: 0.65;
+    font-size: 0.9em;
+  }
+
   .loading,
   .error,
   .empty {

@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { aggregateStatistics, type StatisticsValue } from './statistics'
+import {
+  aggregateStatistics,
+  subtractDataPoints,
+  type StatisticsValue,
+} from './statistics'
 import { toLocalDateString } from '../shared/date'
 
 describe('aggregateStatistics', () => {
@@ -157,5 +161,35 @@ describe('aggregateStatistics', () => {
     expect(result[0].count).toBe(50)
     expect(result[1].date).toBe(toLocalDateString(1738069200000)!)
     expect(result[1].count).toBe(30)
+  })
+})
+
+describe('subtractDataPoints', () => {
+  it('subtracts values on matching dates', () => {
+    const a = [
+      { date: '2025-06-01', count: 10 },
+      { date: '2025-06-02', count: 2 },
+    ]
+    const b = [
+      { date: '2025-06-01', count: 3 },
+      { date: '2025-06-02', count: 7 },
+    ]
+    expect(subtractDataPoints(a, b)).toEqual([
+      { date: '2025-06-01', count: 7 },
+      { date: '2025-06-02', count: -5 },
+    ])
+  })
+
+  it('treats a date missing from one side as zero', () => {
+    const a = [{ date: '2025-06-02', count: 4 }]
+    const b = [{ date: '2025-06-01', count: 6 }]
+    expect(subtractDataPoints(a, b)).toEqual([
+      { date: '2025-06-01', count: -6 },
+      { date: '2025-06-02', count: 4 },
+    ])
+  })
+
+  it('returns empty array when both inputs are empty', () => {
+    expect(subtractDataPoints([], [])).toEqual([])
   })
 })
